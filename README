@@ -1,0 +1,11 @@
+
+To install the dependencies:
+
+  # ./INSTALL_MODULES
+
+or use your package manager of choice.
+
+To install pimpd:
+
+  $ ./INSTALL
+              

@@ -1,0 +1,8 @@
+#!/bin/sh
+printf "Checking directories...\n\n" &&
+mkdir -p $XDG_CONFIG_HOME/pimpd &&
+cp config.pl $XDG_CONFIG_HOME/pimpd &&
+mkdir -p $HOME/bin && cp pimpd*.pl $HOME/bin/pimpd &&
+chmod +x $HOME/bin/pimpd  && 
+printf "Installation complete.\n" &&
+printf "Make sure to set your preferences in $XDG_CONFIG_HOME/pimpd/config.pl\n"

@@ -1,0 +1,105 @@
+== Changelog 0.9.7 ==
+
+=== new features ===
+*   We're now using a separate configuration file.
+*   Basic installation script added after complains.
+*   Basic installation script for the modules is also added.
+
+=== bug fixes ===
+*   One nasty bug in &favlist - $playlistdir.$playlist instead of
+... "$playlistdir/$playlist".
+*   Spelling failure in the help text.
+
+== Changelog 0.9.6 ==
+
+=== bug fixes ===
+*   pimpd -play 5 didn't return the fifth track to STDOUT, but the track that
+... was playing just before that.
+
+== Changelog 0.9.5 ==
+
+==== new features ====
+*   When some output spans over 80 columns, we'll truncate it from now on. 
+... There is a reason why !badware do it like this.
+*   Implemented lyrics support. The idea and how to do it is shamelessy stolen
+... from ncmpcpp's source.
+*   &information() - Mark if the bitrate is low.
+
+==== bug fixes ====
+*   &show_playlist() -  When calling subroutines directly from GetOptions,
+... GetOptions will pass the (stringified) name of the function to the 
+... function itself. Because of this, we'll get something like 'show_playlist'
+... when we shift of values from @_. Naturally, this is not what we want.
+... Therefore, I've implemented some basic sanity checks.
+*   While rewriting, I noticed that some variables could possibly return undef
+... if the tags are missing - fixed.
+
+==== other  ====
+*   Completely rewritten. Got rid of some ugly pieces of code.
+*   &show_playlist() - reworked the output to follow standard rules of maximum
+... 80 columns. I removed the album from the output since having all three
+... fields sharing 80 columns would make it almost unreadable.
+*   Changelog no longer maintained in the code, as you can see. :)
+*   A lot of cleanup is done regarding variables. Why declare variables holding
+... the same value in almost every function... stupidity.
+*   &polling is now named &monitor for consistency.
+*   $APPLICATION_NAME, $APPLICATION_VERSION introduced, mainly so that I can
+... see what version I'm actually working on at the moment... :)
+
+== Changelog 0.8.5 ==
+
+=== new features ===
+*   &show_playlist - allow listing of the current playlist
+*   &play - function for choosing track number to play
+
+==== bug fixes ====
+*   &randomize - We were actually adding $count-1 tracks, oops.
+
+== Changelog 0.8.1 ==
+
+=== new features ===
+*   &polling() - rewrite of the scrobbling function. Whenever song changes,
+... filename is presented on STDOUT.
+*   &favlist() - let user choose name of playlist.
+
+=== other ===
+*   &similar_artists() - removed. It sucked.
+
+== Changelog 0.7.3 ===
+
+=== new features ===
+*   &bighelp() - introduced, using Pod::Usage.
+*   &randomize() - let user choose how many tracks to add.
+*   &cp2port() - introducing support for remote file transfers using Net::SCP
+... or the scp binary. (thanks <zibri>at<ethup.se>)
+
+== Changelog 0.7.0 ===
+
+=== new features ===
+*   &cp2port() - support for copying the track to user supplied destination.
+... What was I thinking hardcoding it? :/
+*   &scrobbling() - introducing local scrobbling that'll turn into statistics
+... later on.
+
+== Changelog 0.6.0 ===
+
+=== new features ===
+*   Switched from Getopt::Std to Getopt::Long. Thank god for that.
+*   Removed unneccesary 'features' - if no argument is supplied to
+... &similar_artists() and &list_playlists(), just show the user what
+... there is to choose from. No need for separate functions, got damn it.
+
+== Changelog 0.5.0 ==
+
+=== new features ===
+*   &add_playlist() - introducing. 
+
+=== bug fixes ===
+*   check if the copy function from &cp2port() actually returns true or not.
+
+== Changelog 0.4.0 ==
+
+=== other ===
+*   Switched from parsing the MPD db by hand to $mpd->collection->all_pathes
+*   &randomize() - The homemade randomize function seldom worked and was ugly.
+... Now we're using the shuffle() function from List::Util.
