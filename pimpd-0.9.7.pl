@@ -1,12 +1,12 @@
 #!/usr/bin/perl 
 ###############################################################################
-#          FILE:   pimpd.pl
+##         FILE:   pimpd.pl
 #         USAGE:  ./pimpd.pl
 #   DESCRIPTION:  Perl Interface for the Music Player Daemon
 #        AUTHOR:  trapd00r (trapd00r at trapd00r dot se)
 #       VERSION:  0.9.7
 #       CREATED:  2010-01-09 09:29:44 AM
-#       UPDATED:  2010-03-09 07:45:44 AM
+##      UPDATED:  2010-03-09 07:45:44 AM
 ###############################################################################
 
 use strict;
