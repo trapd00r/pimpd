@@ -1,3 +1,10 @@
+== Changelog 1.0.0 ==
+
+=== new features ===
+*   Queue functionality
+*   Check state of MPD and decide what to do if stopped etc
+*   More information
+
 == Changelog 0.9.7 ==
 
 === new features ===
