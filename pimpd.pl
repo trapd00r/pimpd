@@ -327,9 +327,9 @@ sub queue {
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    printf(" $clr[1]Playing$clr[9]: %0s - %0s - %0s\n", 
+    printf("$clr[1]Playing$clr[9] => %0s - %0s - %0s\n", 
             $mpd->current->artist, $mpd->current->album, $mpd->current->title); 
-    printf("$clr[2]Upcoming$clr[9]: %0s - %0s - %0s\n",
+    printf("$clr[2]Upcoming$clr[9]  => %0s - %0s - %0s\n",
             $tracksinlist[$nextpos]->artist, $tracksinlist[$nextpos]->album,
             $tracksinlist[$nextpos]->title) unless scalar(@to_play) == $argc;
 
