@@ -232,7 +232,7 @@ sub cp2port {
     return scp1($remote_host, $basedir.$file, $dir);
   }
   chomp($file);
-  copy($basedir.$file, $dir) || die "Failure: $! \n";
+  copy("$basedir/$file", $dir) || die "Failure: $! \n";
 
   exit 0;
 }
