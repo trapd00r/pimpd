@@ -168,7 +168,10 @@ sub show_playlist {
   }
 # which track was choosen?
   printf("\n$clr[1]NOW$clr[9]: $clr[5]%0s $clr[9]%0s $clr[1]%0s$clr[9]\n",
-         $mpd->current->artist, $mpd->current->album, $mpd->current->title);
+         $mpd->current->artist // 'Undef',
+         $mpd->current->album // 'Undef',
+         $mpd->current->title // 'Undef'
+         );
   exit 0;
 }
 
@@ -229,7 +232,7 @@ sub cp2port {
   my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
-    return scp1($remote_host, $basedir.$file, $dir);
+    return scp($remote_host, $basedir.$file, $dir);
   }
   chomp($file);
   copy("$basedir/$file", $dir) || die "Failure: $! \n";
