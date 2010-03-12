@@ -35,7 +35,7 @@ else {
   $mpd = Audio::MPD->new;
 }
 
-our ($nocolor, @queue_tracks, $ctrl); #FIXME
+our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl); #FIXME
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
@@ -83,6 +83,7 @@ GetOptions(information   =>  \&information,
            'queue=i{2,}' =>  \@queue_tracks,
            lyrics        =>  \&lyrics,
            ctrl          =>  \$ctrl,
+           'external=s'  =>  \$list_tracks_in_ext_pl,
            nocolor       =>  \$nocolor,
 
            help          =>  \&help,
@@ -93,6 +94,9 @@ if(@queue_tracks) {
 }
 if($ctrl) {
   &ctrl;
+}
+if($list_tracks_in_ext_pl) {
+  &list_tracks_in_ext_pl($list_tracks_in_ext_pl);
 }
 
 
@@ -193,6 +197,22 @@ sub add_playlist {
       print $playlist, "\n";
     }
   }
+  exit 0;
+} 
+
+sub list_tracks_in_ext_pl {
+  my $playlist = shift;
+  if(!$playlist) {
+    print "hoose palylist\n";
+  }
+  my $fullpath = "$playlist_dir/$playlist\.m3u";
+
+  open(PLAYLIST, $fullpath) || die "Unable to open $fullpath: $!\n";
+  print $clr[4].$fullpath,$clr[9], ": \n";
+  while(<PLAYLIST>) {
+    print $_;
+  }
+  close(PLAYLIST);
   exit 0;
 }
 
@@ -437,6 +457,7 @@ sub help {
     -m  | --monitor        monitor MPD for song changes, output on STDOUT
     -ly | --lyrics         show lyrics for the current song
     -q  | --queue      [I] queue <I> tracks in playlist
+    -e  | --external   [S] list all tracks in external playlist <S>
     -ct | --ctrl           spawn the interactive pimpd shell
 
     -h  | --help           show this help
