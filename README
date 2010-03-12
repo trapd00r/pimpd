@@ -17,6 +17,7 @@ mpc is missing.
     -m  | --monitor        monitor MPD for song changes, output on STDOUT
     -ly | --lyrics         show lyrics for the current song
     -q  | --queue      [I] queue <I> tracks in playlist
+    -e  | --external   [S] list all tracks in external playlist <S>
     -ct | --ctrl           spawn the interactive pimpd shell
 
     -h  | --help           show this help
@@ -29,6 +30,7 @@ mpc is missing.
   
   Note that all options can be specified using 'lazy' shortcuts.
   This is all the same: -ly -lyr --lyri --lyrics
+
 ##############################################################################
 
 To install the dependencies:

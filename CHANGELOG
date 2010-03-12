@@ -4,6 +4,7 @@
 *   Queue functionality
 *   &ctrl - pimpd shell. For simple things like next/prev, toggling of i.e
 ... random/repeat/crossfade state. 
+*   &list_tracks_in_ext_pl - list tracks in specified external playlist
 *   Check state of MPD and decide what to do if stopped etc
 *   More information
 
