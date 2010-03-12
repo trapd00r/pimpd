@@ -35,7 +35,7 @@ else {
   $mpd = Audio::MPD->new;
 }
 
-our ($nocolor, @queue_tracks); #FIXME
+our ($nocolor, @queue_tracks, $ctrl); #FIXME
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
@@ -82,6 +82,7 @@ GetOptions(information   =>  \&information,
            monitor       =>  \&monitoring,
            'queue=i{2,}' =>  \@queue_tracks,
            lyrics        =>  \&lyrics,
+           ctrl          =>  \$ctrl,
            nocolor       =>  \$nocolor,
 
            help          =>  \&help,
@@ -89,6 +90,9 @@ GetOptions(information   =>  \&information,
            );
 if(@queue_tracks) {
   &queue(@queue_tracks);
+}
+if($ctrl) {
+  &ctrl;
 }
 
 
@@ -341,6 +345,78 @@ sub queue {
   print "Queue finished.\n";
 }
 
+sub ctrl {
+  my $option = shift;
+ # print 'pimpd>';
+ print << 'CMD';
+This is the pimpd shell for simple interacting with MPD.
+
+ Available commands are:
+
+ n|next   next track
+ p|prev   previous track
+ t|toggle toggles pause/play
+re|repeat toggles repeat on/off
+ra|random toggles random on/off
+
+CMD
+print '-' x 40, "\n";
+print 'pimpd> ';
+  while(<>) {
+    my $cmd = $_;
+
+    if($cmd =~ /:q/) {
+      print "Quitting...\n";
+      exit 0;
+    }
+    if($cmd =~ /(^n$|^next$)/) {
+      $mpd->next;
+      print $mpd->current->artist, ' - ', $mpd->current->album, ' - ',
+            $mpd->current->title, "\n", 'pimpd> ';
+
+    }
+    if($cmd =~ /(^p$|^prev(.+)?$)/) {
+      $mpd->prev;
+      print $clr[2],$mpd->current->artist, ' - ', $mpd->current->album, ' - ',
+            $mpd->current->title, "$clr[9]\n", 'pimpd> ';
+    }
+    if($cmd =~ /(^t$|^toggle$)/) {
+      $mpd->pause;
+      my $state = $mpd->status->state;
+      if($state eq 'play') {
+        $state = 'playing';
+      }
+      if($state eq 'pause') {
+        $state = 'paused';
+      }
+      print "MPD is $state. \n", 'pimpd> ';
+    }
+
+    if($cmd =~ /(^re$|^repeat$)/) {
+      $mpd->repeat;
+      my $rep_status = $mpd->status->repeat;
+      if($rep_status == 0) {
+        $rep_status = 'disabled.';
+        }
+      else {
+        $rep_status = 'enabled.';
+      }
+      print "Repeat is $rep_status \n" , 'pimpd> ';
+    }
+
+    if($cmd =~ /(^ra$|^random$)/) {
+      $mpd->random;
+      my $rand_status = $mpd->status->random;
+      if($rand_status == 0) {
+        $rand_status = 'disabled.';
+      }
+      else {
+        $rand_status = 'enabled.';
+      }
+      print "Random is $rand_status \n", 'pimpd> ';
+    }
+  }
+}
 
 sub help {
   print << "HELP";
@@ -361,6 +437,7 @@ sub help {
     -m  | --monitor        monitor MPD for song changes, output on STDOUT
     -ly | --lyrics         show lyrics for the current song
     -q  | --queue      [I] queue <I> tracks in playlist
+    -ct | --ctrl           spawn the interactive pimpd shell
 
     -h  | --help           show this help
     -b  | --bighelp        show The Big Help
