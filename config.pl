@@ -4,6 +4,9 @@
 # As specified in mpd.conf
 our $basedir      = '/mnt/Music_1';
 our $playlist_dir = '/mnt/Music_1/Playlists';
+# If no name is specified for playlist, and track is missing id3-field
+# 'genre', use this.
+our $fallback_playlist = 'random';
 # Portable player mountpoint
 our $portable     = '/mnt/mp3/MUSIC'; 
 

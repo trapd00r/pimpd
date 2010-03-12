@@ -19,7 +19,7 @@ use Pod::Usage;
 use Getopt::Long;
 
 require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
-our ($basedir, $playlist_dir, $portable,
+our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
 
 my $APPLICATION_NAME    = 'pimpd';
@@ -232,7 +232,7 @@ sub cp2port {
   my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
-    return scp($remote_host, $basedir.$file, $dir);
+    return scp1($remote_host, $basedir.$file, $dir);
   }
   chomp($file);
   copy("$basedir/$file", $dir) || die "Failure: $! \n";
@@ -241,7 +241,7 @@ sub cp2port {
 }
 
 sub favlist {
-  my $playlist = $ARGV[0] // lc($mpd->current->genre) // 'random';
+  my $playlist = $ARGV[0] // lc($mpd->current->genre) // $fallback_playlist;
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
   open PLAYLIST, ">>$fullpath\.m3u" || die "$!";
