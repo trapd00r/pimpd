@@ -1,3 +1,9 @@
+== Changelog 1.1.0 ==
+
+=== new features ===
+*   regular expression based database search
+*   regular expression based playlist search
+
 == Changelog 1.0.0 ==
 
 === new features ===

@@ -1,37 +1,21 @@
 pimpd is an MPD client written in perl that strives to implement the features
-mpc is missing.
+mpc is missing. This includes, but is not limited to:
 
-  Usage: /home/scp1/bin/pimpd [OPTIONS] (ARGUMENT)
+·  Regular expression based database queries
+·  Regular expression based searches in active playlist
+·  Randomizing of playlist; you could add 100 (carefully!) randomly selected
+   tracks to your playlist
+·  Fetching of lyrics on demand
+·  Queue functionality
+·  Interactive shell for basic MPD operations
+·  Monitoring of MPD - Whenever a song change takes place, pimpd announces
+·  Ability to easily copy current track to specified location; i.e your portable  
+   musicplayer of choice or maybe to your to-burn directory
+·  Huge load of interesting information regarding what's currently spinning
 
-  OPTIONS:
-    -i  | --info           print current information
-    -r  | --randomize  (I) randomize a new playlist with <I> tracks.
-                           The default value is 100.
-    -c  | --copy [S]       copy the current track to location S
-    -f  | --favorite   (S) favorize the current track. If no name for the
-                           playlist is given, the 'genre' id3-tag is used
-    -l  | --listalbums (S) list all albums by <S> or the current artist
-    -s  | --show           show current playlist
-    -p  | --play       [I] play number <I> track in playlist
-    -a  | --add        (S) add <S> playlist and play it
-    -m  | --monitor        monitor MPD for song changes, output on STDOUT
-    -ly | --lyrics         show lyrics for the current song
-    -q  | --queue      [I] queue <I> tracks in playlist
-    -e  | --external   [S] list all tracks in external playlist <S>
-    -ct | --ctrl           spawn the interactive pimpd shell
+Please see below for a full list of options.
 
-    -h  | --help           show this help
-    -b  | --bighelp        show The Big Help
-  Arguments:
-    I  Integer value 
-    S  String  value
-    [] Mandantory
-    () Optional
-  
-  Note that all options can be specified using 'lazy' shortcuts.
-  This is all the same: -ly -lyr --lyri --lyrics
-
-##############################################################################
+################################################################################
 
 To install the dependencies:
 

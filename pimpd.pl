@@ -25,12 +25,13 @@ use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
 
+
 require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
 
 my $APPLICATION_NAME    = 'pimpd';
-my $APPLICATION_VERSION = '1.0.0';
+my $APPLICATION_VERSION = '1.1.0';
 
 my $mpd;
 if(defined($remote_host)) {
@@ -42,7 +43,8 @@ else {
   $mpd = Audio::MPD->new;
 }
 
-our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl); #FIXME
+our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl,
+     $search_pl_pattern, $search_db_pattern); #FIXME
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
@@ -50,6 +52,7 @@ my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
 if(!@ARGV || $mpd->status->playlistlength < 1) {
   &help;
 }
+
 if($mpd->status->state eq 'stop') {
   $mpd->play;
 }
@@ -78,23 +81,25 @@ my $status_pl_len = $mpd->status->playlistlength.' songs';
 my $song_no       = $mpd->status->song;
 
 
-GetOptions(information   =>  \&information,
-           randomize     =>  \&randomize,
-           copy          =>  \&cp2port,
-           favorite      =>  \&favlist,
-           listalbums    =>  \&listalbums,
-           show          =>  \&show_playlist,
-           play          =>  \&play_song_from_pl,
-           add           =>  \&add_playlist,
-           monitor       =>  \&monitoring,
-           'queue=i{2,}' =>  \@queue_tracks,
-           lyrics        =>  \&lyrics,
-           ctrl          =>  \$ctrl,
-           'external=s'  =>  \$list_tracks_in_ext_pl,
-           nocolor       =>  \$nocolor,
+GetOptions(information       =>  \&information,
+           randomize         =>  \&randomize,
+           copy              =>  \&cp2port,
+           favorite          =>  \&favlist,
+           listalbums        =>  \&listalbums,
+           show              =>  \&show_playlist,
+           play              =>  \&play_song_from_pl,
+           add               =>  \&add_playlist,
+           monitor           =>  \&monitoring,
+           'queue=i{2,}'     =>  \@queue_tracks,
+           lyrics            =>  \&lyrics,
+           ctrl              =>  \$ctrl,
+           'external=s'      =>  \$list_tracks_in_ext_pl,                          
+           'spl|search-pl=s' =>  \$search_pl_pattern,
+           'sdb|search-db=s' =>  \$search_db_pattern,
+           nocolor           =>  \$nocolor,
 
-           help          =>  \&help,
-           bighelp       =>  \&bighelp,
+           help              =>  \&help,
+           bighelp           =>  \&bighelp,
            );
 if(@queue_tracks) {
   &queue(@queue_tracks);
@@ -104,6 +109,12 @@ if($ctrl) {
 }
 if($list_tracks_in_ext_pl) {
   &list_tracks_in_ext_pl($list_tracks_in_ext_pl);
+}
+if($search_pl_pattern) {
+  &search_active_pl($search_pl_pattern);
+}
+if($search_db_pattern) {
+  &search_database($search_db_pattern);
 }
 
 
@@ -361,11 +372,12 @@ sub queue {
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    printf("$clr[1]Playing$clr[9] => %0s - %0s - %0s\n", 
+    printf("$clr[1] Playing$clr[9]:  %0s - %0s - %0s\n", 
             $mpd->current->artist, $mpd->current->album, $mpd->current->title); 
-    printf("$clr[2]Upcoming$clr[9]  => %0s - %0s - %0s\n",
+    printf("$clr[2]Upcoming$clr[9]:  %0s - %0s - %0s\n",
             $tracksinlist[$nextpos]->artist, $tracksinlist[$nextpos]->album,
             $tracksinlist[$nextpos]->title) unless scalar(@to_play) == $argc;
+    print '-' x 40, "\n";
 
     sleep $time;
   }
@@ -445,30 +457,63 @@ print 'pimpd> ';
   }
 }
 
+sub search_active_pl {
+  my $search   = shift // 'undef';
+  my @playlist = $mpd->playlist->as_items;
+  my @found;
+  
+  foreach my $song(@playlist) {
+    if($song =~ /$search/i) {
+      push(@found, $song->pos);
+    }
+  }
+  &queue(@found);
+}
+
+sub search_database {
+  my $search = shift // 'undef';
+  my @collection = $mpd->collection->all_pathes;
+  my @found;
+
+  foreach my $song(@collection) {
+    if($song =~ /$search/i) {
+      print $song, "\n";
+      $mpd->playlist->add($song);
+    }
+  }
+  exit 0;
+}
+
 sub help {
   print << "HELP";
   $APPLICATION_NAME $APPLICATION_VERSION
   Usage: $0 [OPTIONS] (ARGUMENT)
 
   OPTIONS:
-    -i  | --info           print current information
-    -r  | --randomize  (I) randomize a new playlist with <I> tracks.
-                           The default value is 100.
-    -c  | --copy [S]       copy the current track to location S
-    -f  | --favorite   (S) favorize the current track. If no name for the
-                           playlist is given, the 'genre' id3-tag is used
-    -l  | --listalbums (S) list all albums by <S> or the current artist
-    -s  | --show           show current playlist
-    -p  | --play       [I] play number <I> track in playlist
-    -a  | --add        (S) add <S> playlist and play it
-    -m  | --monitor        monitor MPD for song changes, output on STDOUT
-    -ly | --lyrics         show lyrics for the current song
-    -q  | --queue      [I] queue <I> tracks in playlist
-    -e  | --external   [S] list all tracks in external playlist <S>
-    -ct | --ctrl           spawn the interactive pimpd shell
+    -i   | --info           print current information
+    -r   | --randomize  (I) randomize a new playlist with <integer> tracks.
+                            The default value is 100.
+    -c   | --copy [S]       copy the current track to location S
+    -f   | --favorite   (S) favorize the current track. If no name for the
+                            playlist is given, the 'genre' id3-tag is used
+    -l   | --listalbums (S) list all albums by <string> or the current artist
+    -s   | --show           show current playlist
+    -p   | --play       [I] play number <integer> track in playlist
+    -a   | --add        (S) add <string> playlist and play it
+    -m   | --monitor        monitor MPD for song changes, output on STDOUT
+    -ly  | --lyrics         show lyrics for the current song
+    -q   | --queue      [I] queue <integer> tracks in playlist
+    -e   | --external   [S] list all tracks in external playlist <string>
+    -ct  | --ctrl           spawn the interactive pimpd shell
+    -spl | --search-pl  [P] search the active playlist for <pattern> and queue
+                            the results. Pattern is Perl RE:
+                            '(amiga|atari)?(ninten.{2})'
+                            'fooo?b.+'
+    -sdb | --search-db  [P] search the database for <pattern> and add the
+                            the results to active playlist. See --search-pl.
 
-    -h  | --help           show this help
-    -b  | --bighelp        show The Big Help
+    -h   | --help           show this help
+    -b   | --bighelp        show The Big Help
   Arguments:
     I  Integer value 
     S  String  value
