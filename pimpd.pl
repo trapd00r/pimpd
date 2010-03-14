@@ -89,7 +89,7 @@ GetOptions(information       =>  \&information,
            play              =>  \&play_song_from_pl,
            add               =>  \&add_playlist,
            monitor           =>  \&monitoring,
-           'queue=i{2,}'     =>  \@queue_tracks,
+           'queue=i{1,}'     =>  \@queue_tracks,
            lyrics            =>  \&lyrics,
            ctrl              =>  \$ctrl,
            'external=s'      =>  \$list_tracks_in_ext_pl,                          
@@ -202,12 +202,13 @@ sub show_playlist {
 
 sub add_playlist {
   if(@ARGV) {
-    my @playlists = @ARGV;;
+    my @playlists = @ARGV;
     $mpd->playlist->clear;
     foreach my $playlist(@playlists) {
       $mpd->playlist->load($playlist);
     }
     $mpd->play;
+    exit 0;
   }
   else {
     my @playlists = $mpd->collection->all_playlists;
@@ -358,31 +359,31 @@ sub monitoring {
 
 sub queue {
   my @to_play = @_;
-  if(@to_play < 2) {
-    print STDERR "The queue function requires at least two songs \n";
+  if(@to_play < 1) {
+    print STDERR "The queue function requires at least one song \n";
     exit 1;
   }
   my @tracksinlist = ($mpd->playlist->as_items);
 
   my $argc         = 0;
 
-  print "Starting queue...\n";
+  print ">> Starting queue...\n";
   while(scalar(@to_play) > $argc) {
     $mpd->play($to_play[$argc]);
     my $time = $mpd->current->time;
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    printf("$clr[1] Playing$clr[9]:  %0s - %0s - %0s\n", 
+    printf("$clr[1] Playing$clr[9]: %0s - %0s - %0s\n", 
             $mpd->current->artist, $mpd->current->album, $mpd->current->title); 
-    printf("$clr[2]Upcoming$clr[9]:  %0s - %0s - %0s\n",
+    printf("$clr[2]Upcoming$clr[9]: %0s - %0s - %0s\n",
             $tracksinlist[$nextpos]->artist, $tracksinlist[$nextpos]->album,
             $tracksinlist[$nextpos]->title) unless scalar(@to_play) == $argc;
-    print '-' x 40, "\n";
+    print '-' x 40, "\n" unless scalar(@to_play) == $argc;
 
     sleep $time;
   }
-  print "Queue finished.\n";
+  print ">> Queue finished.\n";
 }
 
 sub ctrl {
@@ -465,6 +466,7 @@ sub search_active_pl {
   
   foreach my $song(@playlist) {
     if($song =~ /$search/i) {
+      print '> ', $song->title, "\n";
       push(@found, $song->pos);
     }
   }
@@ -474,15 +476,21 @@ sub search_active_pl {
 sub search_database {
   my $search = shift // 'undef';
   my @collection = $mpd->collection->all_pathes;
-  my @found;
 
   foreach my $song(@collection) {
     if($song =~ /$search/i) {
-      print $song, "\n";
+      printf("> %.77s\n", $song); 
       $mpd->playlist->add($song);
     }
   }
+  print &currently_playing;
   exit 0;
+}
+
+sub currently_playing {
+  my $current = $mpd->current->artist . ' - ' . $mpd->current->album .
+                ' - ' . $mpd->current->title;
+  return ">> $current \n";
 }
 
 sub help {
