@@ -25,7 +25,6 @@ use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
 
-
 require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
@@ -49,7 +48,7 @@ our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl,
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
 
-if(!@ARGV || $mpd->status->playlistlength < 1) {
+if(!@ARGV) {  #|| $mpd->status->playlistlength < 1) {
   &help;
 }
 
@@ -151,7 +150,7 @@ if($search_db_pattern) {
 
   exit 0;
 
-} 
+ }
 
 sub randomize {
   my $count = $ARGV[0] // 100;
@@ -203,9 +202,11 @@ sub show_playlist {
 
 sub add_playlist {
   if(@ARGV) {
-    my $playlist = $ARGV[0];
+    my @playlists = @ARGV;;
     $mpd->playlist->clear;
-    $mpd->playlist->load($playlist);
+    foreach my $playlist(@playlists) {
+      $mpd->playlist->load($playlist);
+    }
     $mpd->play;
   }
   else {
