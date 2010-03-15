@@ -43,7 +43,7 @@ else {
 }
 
 our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl,
-     $search_pl_pattern, $search_db_pattern); #FIXME
+     $search_pl_pattern, $search_db_pattern, $information); #FIXME
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
@@ -53,7 +53,7 @@ if(!@ARGV) {
   &help;
 }
 
-GetOptions(information       =>  \&information,
+GetOptions(information       =>  \$information,
            randomize         =>  \&randomize,
            copy              =>  \&cp2port,
            favorite          =>  \&favlist,
@@ -99,7 +99,9 @@ my $state         = $mpd->status->state;
 my $status_pl_ver = $mpd->status->playlist;
 my $status_pl_len = $mpd->status->playlistlength.' songs';
 my $song_no       = $mpd->status->song;
-
+if($information) {
+  &information;
+}
 
 if(@queue_tracks) {
   &queue(@queue_tracks);
