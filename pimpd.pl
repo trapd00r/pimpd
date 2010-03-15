@@ -48,14 +48,35 @@ our ($nocolor, @queue_tracks, $ctrl, $list_tracks_in_ext_pl,
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
 
-if(!@ARGV) {  #|| $mpd->status->playlistlength < 1) {
+
+if(!@ARGV) {
   &help;
 }
 
-if($mpd->status->state eq 'stop') {
-  $mpd->play;
-}
+GetOptions(information       =>  \&information,
+           randomize         =>  \&randomize,
+           copy              =>  \&cp2port,
+           favorite          =>  \&favlist,
+           listalbums        =>  \&listalbums,
+           show              =>  \&show_playlist,
+           play              =>  \&play_song_from_pl,
+           add               =>  \&add_playlist,
+           monitor           =>  \&monitoring,
+           'queue=i{1,}'     =>  \@queue_tracks,
+           lyrics            =>  \&lyrics,
+           ctrl              =>  \$ctrl,
+           'external=s'      =>  \$list_tracks_in_ext_pl,                          
+           'spl|search-pl=s' =>  \$search_pl_pattern,
+           'sdb|search-db=s' =>  \$search_db_pattern,
+           nocolor           =>  \$nocolor,
 
+           help              =>  \&help,
+           bighelp           =>  \&bighelp,
+           );
+if($mpd->status->playlistlength < 1) {
+  print "Your playlist looks empty. Trying to add some songs...\n\n";
+  &search_database($search_db_pattern);
+}
 
 my $notag         = $clr[0].'undef'.$clr[9]; 
 my $curr_artist   = $mpd->current->artist  // $notag;
@@ -80,26 +101,6 @@ my $status_pl_len = $mpd->status->playlistlength.' songs';
 my $song_no       = $mpd->status->song;
 
 
-GetOptions(information       =>  \&information,
-           randomize         =>  \&randomize,
-           copy              =>  \&cp2port,
-           favorite          =>  \&favlist,
-           listalbums        =>  \&listalbums,
-           show              =>  \&show_playlist,
-           play              =>  \&play_song_from_pl,
-           add               =>  \&add_playlist,
-           monitor           =>  \&monitoring,
-           'queue=i{1,}'     =>  \@queue_tracks,
-           lyrics            =>  \&lyrics,
-           ctrl              =>  \$ctrl,
-           'external=s'      =>  \$list_tracks_in_ext_pl,                          
-           'spl|search-pl=s' =>  \$search_pl_pattern,
-           'sdb|search-db=s' =>  \$search_db_pattern,
-           nocolor           =>  \$nocolor,
-
-           help              =>  \&help,
-           bighelp           =>  \&bighelp,
-           );
 if(@queue_tracks) {
   &queue(@queue_tracks);
 }
@@ -115,7 +116,6 @@ if($search_pl_pattern) {
 if($search_db_pattern) {
   &search_database($search_db_pattern);
 }
-
 
  sub information {
   if($curr_rate < 192) {
@@ -474,7 +474,7 @@ sub search_active_pl {
 }
 
 sub search_database {
-  my $search = shift // 'undef';
+  my $search = shift; 
   my @collection = $mpd->collection->all_pathes;
 
   foreach my $song(@collection) {
@@ -483,6 +483,7 @@ sub search_database {
       $mpd->playlist->add($song);
     }
   }
+  $mpd->play;
   print &currently_playing;
   exit 0;
 }
@@ -490,7 +491,7 @@ sub search_database {
 sub currently_playing {
   my $current = $mpd->current->artist . ' - ' . $mpd->current->album .
                 ' - ' . $mpd->current->title;
-  return ">> $current \n";
+  return "$clr[1]>>$clr[9] $current \n";
 }
 
 sub help {
