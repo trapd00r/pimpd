@@ -311,8 +311,8 @@ sub listalbums {
 sub play_song_from_pl {
   my $choice = $ARGV[0];
   $mpd->play($choice);
-  printf("$clr[1]%0s $clr[3]%0s $clr[5]%0s $clr[9] \n",
-         $mpd->current->artist, $mpd->current->album, $mpd->current->title);
+  print &currently_playing;
+
   exit 0;
 }
 
@@ -402,13 +402,15 @@ This is the pimpd shell for simple interacting with MPD.
 re|repeat toggles repeat on/off
 ra|random toggles random on/off
 
+  :q|exit exit
+
 CMD
 print '-' x 40, "\n";
 print 'pimpd> ';
   while(<>) {
     my $cmd = $_;
 
-    if($cmd =~ /:q/) {
+    if($cmd =~ /:q|exit/) {
       print "Quitting...\n";
       exit 0;
     }
@@ -462,7 +464,7 @@ print 'pimpd> ';
 }
 
 sub search_active_pl {
-  my $search   = shift // 'undef';
+  my $search   = shift;
   my @playlist = $mpd->playlist->as_items;
   my @found;
   
@@ -491,8 +493,14 @@ sub search_database {
 }
 
 sub currently_playing {
-  my $current = $mpd->current->artist . ' - ' . $mpd->current->album .
-                ' - ' . $mpd->current->title;
+  my $artist  = $clr[8].$mpd->current->artist.$clr[9] // 'undef';
+  my $album   = $clr[3].$mpd->current->album.$clr[9]  // 'undef';
+  my $song    = $clr[4].$mpd->current->title.$clr[9]  // 'undef';
+  my $bitrate = $clr[5].$mpd->status->bitrate.$clr[9] // 'undef';
+  my $genre   = $clr[1].$mpd->current->genre.$clr[9]  // 'undef';
+
+  my $current = "$artist - $album - $song ($bitrate kbps) [$genre]";
+
   return "$clr[1]>>$clr[9] $current \n";
 }
 
