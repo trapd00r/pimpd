@@ -22,6 +22,8 @@ To install the dependencies:
   # ./INSTALL_MODULES
 
 or use your package manager of choice.
+In archlinux, you could just use:
+  $ yaourt -S perl-html-tokeparser-simple perl-audio-mpd perl-libwww perl-text-wrapi18n
 
 To install pimpd:
 
