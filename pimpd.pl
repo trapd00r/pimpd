@@ -537,7 +537,6 @@ sub search_active_pl {
 
 sub search_database {
   my $search = shift; 
-  print $search x 20;
   my @collection = $mpd->collection->all_pathes;
 
   foreach my $song(@collection) {
