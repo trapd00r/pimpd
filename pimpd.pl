@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+###############################################################################
 
 use strict;
 use Audio::MPD;
@@ -43,7 +44,8 @@ else {
 }
 
 our (@opt_queue, $opt_ctrl, @opt_list_external_list,
-     $search_pl_pattern, $search_db_pattern, $opt_information); #FIXME
+     $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
+     $opt_randomize, @opt_add_playlist);
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
@@ -53,30 +55,63 @@ if(!@ARGV) {
   &help;
 }
 
-GetOptions(information       =>  \$opt_information,
-           randomize         =>  \&randomize,
-           copy              =>  \&cp2port,
-           favorite          =>  \&favlist,
-           listalbums        =>  \&listalbums,
-           show              =>  \&show_playlist,
-           play              =>  \&play_song_from_pl,
-           add               =>  \&add_playlist,
-           monitor           =>  \&monitoring,
+# :{,} == zero or more
+GetOptions('information'     =>  \$opt_information,
+           'randomize:i'     =>  \$opt_randomize,
+           'copy'            =>  \&cp2port,
+           'favorite'        =>  \&favlist,
+           'listalbums'      =>  \&listalbums,
+           'show'            =>  \&show_playlist,
+           'play'            =>  \&play_song_from_pl,
+           'add=s{1,}'       =>  \@opt_add_playlist,
+           'monitor'         =>  \&monitoring,
            'queue=i{1,}'     =>  \@opt_queue,
-           lyrics            =>  \&lyrics,
-           ctrl              =>  \$opt_ctrl,
+           'lyrics'          =>  \&lyrics,
+           'ctrl'            =>  \$opt_ctrl,
            'external=s{1,}'  =>  \@opt_list_external_list,                          
            'spl|search-pl=s' =>  \$search_pl_pattern,
            'sdb|search-db=s' =>  \$search_db_pattern,
 
-           help              =>  \&help,
-           bighelp           =>  \&bighelp,
+           'help'            =>  \&help,
+           'bighelp'         =>  \&bighelp,
            );
 if($mpd->status->playlistlength < 1) {
-  print "Your playlist looks empty. Trying to add some songs...\n\n";
-  &randomize(30);
-# Fail. Missing pattern == all songs added
-  #&search_database($search_db_pattern); 
+  print "Your playlist seems empty. Let us add some music!\n";
+  sub listlen_help {
+    print << 'FOO';
+    OPTIONS:
+      randomize <number>    randomize a new playlist with <number> tracks
+      add <string>          add <string> playlist(s)
+      search <pattern>      search the database for <pattern>. 
+                            Note that you shouldn't escape the pattern like
+                            in the shell; f(oo)?b.r will do just fine.
+FOO
+  }
+  &listlen_help;
+
+  print 'pimpd> ';
+  while(<STDIN>) {
+    my $action = $_;
+  
+    if($action =~ /^search\s+(.+)/) {
+      my $search = $1;
+      &search_database($search);
+    }
+    elsif($action =~  /^randomize\s+(.+)/) {
+      my $no = $1;
+      &randomize($no);
+    }
+    elsif($action =~ /add\s+(.+)/) {
+      my $list = $1;
+      my @lists = split(/\s/, $list);
+      &add_playlist(@lists);
+    }
+
+    else {
+      &listlen_help;
+      print 'pimpd> ';
+    }
+  }
 }
 
 my $notag         = $clr[0].'undef'.$clr[9]; 
@@ -103,6 +138,12 @@ my $song_no       = $mpd->status->song;
 
 if($opt_information) {
   &information;
+}
+if($opt_randomize) {
+  &randomize($opt_randomize);
+}
+if(@opt_add_playlist) {
+  &add_playlist(@opt_add_playlist);
 }
 
 if(@opt_queue) {
@@ -157,7 +198,7 @@ if($search_db_pattern) {
  }
 
 sub randomize {
-  my $count = $ARGV[0] // 100;
+  my $count = shift // 100;
   my @songs = $mpd->collection->all_pathes;
   @songs    = shuffle(@songs);
   $mpd->playlist->clear;
@@ -195,22 +236,19 @@ sub show_playlist {
     printf"%03i $clr[5]%25.25s $clr[9]| $clr[1]%-47.47s $clr[9] \n",
           $i,$artist, $title;
   }
-# which track was choosen?
-  printf("\n$clr[1]NOW$clr[9]: $clr[5]%0s $clr[9]%0s $clr[1]%0s$clr[9]\n",
-         $mpd->current->artist // 'Undef',
-         $mpd->current->album // 'Undef',
-         $mpd->current->title // 'Undef'
-         );
+  print "\n", &currently_playing, "\n";
   exit 0;
 }
 
 sub add_playlist {
-  if(@ARGV) {
-    my @playlists = @ARGV;
+  if(@_) {
+    my @playlists = @_;
     $mpd->playlist->clear;
     foreach my $playlist(@playlists) {
       $mpd->playlist->load($playlist);
     }
+    print ">> Adding...\n";
+    print "> ", "$_\n" for(@playlists);
     $mpd->play;
     exit 0;
   }
@@ -499,6 +537,7 @@ sub search_active_pl {
 
 sub search_database {
   my $search = shift; 
+  print $search x 20;
   my @collection = $mpd->collection->all_pathes;
 
   foreach my $song(@collection) {
@@ -508,20 +547,18 @@ sub search_database {
     }
   }
   $mpd->play;
-  print &currently_playing;
   exit 0;
 }
 
 sub currently_playing {
-  my $artist  = $clr[8].$mpd->current->artist.$clr[9] // 'undef';
-  my $album   = $clr[3].$mpd->current->album.$clr[9]  // 'undef';
+  my $artist  = $clr[3].$mpd->current->artist.$clr[9] // 'undef';
   my $song    = $clr[4].$mpd->current->title.$clr[9]  // 'undef';
   my $bitrate = $mpd->status->bitrate                 // 'undef';
   my $genre   = $clr[1].$mpd->current->genre.$clr[9]  // 'undef';
 
-  my $current = "$artist - $album - $song ($bitrate kbps) [$genre]";
+  my $current = "$clr[1] >>$clr[9] $artist - $song ($bitrate kbps) [$genre]";
 
-  return "$clr[1]>>$clr[9] $current \n";
+  return $current;
 }
 
 sub help {
