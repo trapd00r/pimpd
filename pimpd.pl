@@ -1,4 +1,5 @@
 #!/usr/bin/perl 
+use strict;
 # pimpd - Perl Interface for the Music Player Daemon
 # Copyright (C) 2010 trapd00r <trapd00r@trapd00r.se>
 #
@@ -15,17 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###############################################################################
-
-use strict;
+# External modules that'll be used later on
+# LWP::Simple, HTML::TokeParser::Simple, Text::Wrap 
 use Audio::MPD;
-use File::Copy;
-use LWP::Simple;
-use HTML::TokeParser::Simple;
-use Text::Wrap;
 use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
 
+if(!@ARGV) {
+  &help;
+}
 require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
@@ -49,11 +49,6 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
-
-
-if(!@ARGV) {
-  &help;
-}
 
 # :{,} == zero or more
 GetOptions('information'     =>  \$opt_information,
@@ -314,6 +309,7 @@ sub scp_binary {
 }
 
 sub cp2port {
+  use File::Copy;
   my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
@@ -356,8 +352,13 @@ sub play_song_from_pl {
 }
 
 sub lyrics {
+  use LWP::Simple;
+  use HTML::TokeParser::Simple;
+  use Text::Wrap;
+  my $artist = $mpd->current->artist;
+  my $song   = $mpd->current->title;
   my $url = "http://lyricsplugin.com/winamp03/plugin/?artist=".
-            "$curr_artist&title=$curr_title";
+            "$artist&title=$song";
   my $lyrics = get($url);
   my $p      = HTML::TokeParser::Simple->new(string=>$lyrics);
 
@@ -365,6 +366,10 @@ sub lyrics {
   while(my $token = $p->get_token) {
     next unless($token->is_text);
     push(@lyrics, $token->as_is);
+  }
+# 26 elements if no text
+  if(scalar(@lyrics)<27) {
+    print "Sorry, no lyrics found.\n";
   }
   $Text::Wrap::columns = 80;
   print wrap('', '', @lyrics[12..@lyrics-13]);
@@ -566,38 +571,27 @@ sub help {
   Usage: $0 [OPTIONS] (ARGUMENT)
 
   OPTIONS:
-    -i   | --info           print current information
-    -r   | --randomize  (I) randomize a new playlist with <integer> tracks.
-                            The default value is 100.
-    -c   | --copy [S]       copy the current track to location S
-    -f   | --favorite   (S) favorize the current track. If no name for the
-                            playlist is given, the 'genre' id3-tag is used
-    -l   | --listalbums (S) list all albums by <string> or the current artist
-    -s   | --show           show current playlist
-    -p   | --play       [I] play number <integer> track in playlist
-    -a   | --add        (S) add <string> playlist and play it
-    -m   | --monitor        monitor MPD for song changes, output on STDOUT
-    -ly  | --lyrics         show lyrics for the current song
-    -q   | --queue      [I] queue <integer> tracks in playlist
-    -e   | --external   [S] list all tracks in external playlist <string>
-    -ct  | --ctrl           spawn the interactive pimpd shell
-    -spl | --search-pl  [P] search the active playlist for <pattern> and queue
-                            the results. Pattern is Perl RE:
-                            '(amiga|atari)?(ninten.{2})'
-                            'fooo?b.+'
-    -sdb | --search-db  [P] search the database for <pattern> and add the
-                            the results to active playlist. See --search-pl.
+      -i, --info        print current information
+      -r, --randomize   randomize a new playlist with <integer> tracks
+      -c, --copy        copy the current track to location <string> 
+      -f, --favorite    favorize the current track. If no name for the
+                        playlist is given, the 'genre' id3-tag is used
+      -l, --listalbums  list all albums by <string> or current artist
+      -s, --show        show current playlist
+      -p, --play        play the number <integer> track in playlist
+      -a, --add         add playlist <string> and play it
+      -m, --monitor     monitor MPD for song changes, output on STDOUT
+     -ly, --lyrics      show lyrics for the current song
+      -q, --queue       queue <integer> tracks in playlist
+      -e, --external    list all tracks in external playlist <string>
+     -ct, --ctrl        spawn the interactive pimpd shell 
+    -spl, --search-pl   search the active playlist for <pattern>
+    -sdb, --search-db   search the database for <pattern> and add the 
+                        results to active playlist
 
-    -h   | --help           show this help
-    -b   | --bighelp        show The Big Help
-  Arguments:
-    I  Integer value 
-    S  String  value
-    [] Mandantory
-    () Optional
-  
-  Note that all options can be specified using 'lazy' shortcuts.
-  This is all the same: -ly -lyr --lyri --lyrics
+      -h, --help        show this help
+
+  PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
 HELP
 exit 0;
 }
