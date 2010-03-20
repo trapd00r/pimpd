@@ -78,7 +78,7 @@ GetOptions('information'      =>  \$opt_information,
            'external=s{1,}'   =>  \@opt_list_external_list,                          
            'spl|search-pl=s'  =>  \$search_pl_pattern,
            'sdb|search-db=s'  =>  \$search_db_pattern,
-           'no-color|nocolor' => \$opt_color,
+           'no-color|nocolor' =>  \$opt_color,
 
            'help'             =>  \&help,
            'bighelp'          =>  \&bighelp,

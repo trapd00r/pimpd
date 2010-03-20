@@ -14,4 +14,7 @@ our $portable     = '/mnt/mp3/MUSIC';
 our $remote_host  = undef;
 our $remote_pass  = 'mpd_pass';
 our $remote_user  = 'ssh_user';
+
+# If you never want any coloured output, set this to 1
+our $opt_color    = 0;
 1;
