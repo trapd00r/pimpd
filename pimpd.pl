@@ -26,7 +26,8 @@ use Getopt::Long;
 if(!@ARGV) {
   &help;
 }
-require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
+#require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
+require "/etc/pimpd.conf";
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
 
