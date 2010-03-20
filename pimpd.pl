@@ -459,7 +459,7 @@ sub queue {
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    print &currently_playing;
+    print &currently_playing, "\n";
     printf(">>> %s - %s - %s\n", $tracksinlist[$nextpos]->artist,
                                  $tracksinlist[$nextpos]->album,
                                  $tracksinlist[$nextpos]->title)
