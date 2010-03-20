@@ -26,6 +26,11 @@ In archlinux, you could just use:
   $ yaourt -S perl-html-tokeparser-simple perl-audio-mpd perl-libwww perl-text-wrapi18n
 
 To install pimpd:
+  Copy the configuration file to either /etc/pimpd.conf or
+  $XDG_CONFIG_HOME/pimpd/config.pl
 
-  $ ./INSTALL
+  Copy pimpd.pl to /usr/bin or any other location you prefer in your $PATH
+
+Dont forget to edit the configuration file.
+
               
