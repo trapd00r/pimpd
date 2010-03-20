@@ -18,6 +18,10 @@ use strict;
 ###############################################################################
 # External modules that'll be used later on
 # LWP::Simple, HTML::TokeParser::Simple, Text::Wrap 
+
+my $APPLICATION_NAME    = 'pimpd';
+my $APPLICATION_VERSION = '1.2.0';
+
 use Audio::MPD;
 use List::Util qw(shuffle);
 use Pod::Usage;
@@ -36,11 +40,10 @@ else {
 }
 
 
+# imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user);
 
-my $APPLICATION_NAME    = 'pimpd';
-my $APPLICATION_VERSION = '1.1.0';
 
 my $mpd;
 if(defined($remote_host)) {
@@ -56,7 +59,7 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist, $opt_cp2port,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
-     $nocolor);
+     $opt_color);
 
 
 # :{,} == zero or more
@@ -75,7 +78,7 @@ GetOptions('information'      =>  \$opt_information,
            'external=s{1,}'   =>  \@opt_list_external_list,                          
            'spl|search-pl=s'  =>  \$search_pl_pattern,
            'sdb|search-db=s'  =>  \$search_db_pattern,
-           'no-color|nocolor' => \$nocolor,
+           'no-color|nocolor' => \$opt_color,
 
            'help'             =>  \&help,
            'bighelp'          =>  \&bighelp,
@@ -84,7 +87,7 @@ GetOptions('information'      =>  \$opt_information,
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
 
-if($nocolor) {
+if($opt_color) {
   @clr = ("\033[0m");
 }
 
@@ -624,8 +627,7 @@ sub help {
     -spl, --search-pl   search the active playlist for <pattern>
     -sdb, --search-db   search the database for <pattern> and add the 
                         results to active playlist
-
-      -n, --nocolor     do not use colorized output
+      -n, --nocolor     dont use colorized output
 
       -h, --help        show this help
 
