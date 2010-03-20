@@ -45,31 +45,40 @@ else {
 
 our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
-     $opt_randomize, @opt_add_playlist);
+     $opt_randomize, @opt_add_playlist, $opt_show_playlist, $opt_cp2port,
+     $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
+     $nocolor);
+
+
+# :{,} == zero or more
+GetOptions('information'      =>  \$opt_information,
+           'randomize:i'      =>  \$opt_randomize,
+           'copy'             =>  \$opt_cp2port,
+           'favorite'         =>  \$opt_favlist,
+           'listalbums'       =>  \$opt_list_albums,
+           'show'             =>  \$opt_show_playlist,
+           'play'             =>  \$opt_play_song_from_pl,
+           'add=s{1,}'        =>  \@opt_add_playlist,
+           'monitor'          =>  \$opt_monitoring,
+           'queue=i{1,}'      =>  \@opt_queue,
+           'lyrics'           =>  \&lyrics,
+           'ctrl'             =>  \$opt_ctrl,
+           'external=s{1,}'   =>  \@opt_list_external_list,                          
+           'spl|search-pl=s'  =>  \$search_pl_pattern,
+           'sdb|search-db=s'  =>  \$search_db_pattern,
+           'no-color|nocolor' => \$nocolor,
+
+           'help'             =>  \&help,
+           'bighelp'          =>  \&bighelp,
+           );
 
 my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
            "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
 
-# :{,} == zero or more
-GetOptions('information'     =>  \$opt_information,
-           'randomize:i'     =>  \$opt_randomize,
-           'copy'            =>  \&cp2port,
-           'favorite'        =>  \&favlist,
-           'listalbums'      =>  \&listalbums,
-           'show'            =>  \&show_playlist,
-           'play'            =>  \&play_song_from_pl,
-           'add=s{1,}'       =>  \@opt_add_playlist,
-           'monitor'         =>  \&monitoring,
-           'queue=i{1,}'     =>  \@opt_queue,
-           'lyrics'          =>  \&lyrics,
-           'ctrl'            =>  \$opt_ctrl,
-           'external=s{1,}'  =>  \@opt_list_external_list,                          
-           'spl|search-pl=s' =>  \$search_pl_pattern,
-           'sdb|search-db=s' =>  \$search_db_pattern,
+if($nocolor) {
+  @clr = ("\033[0m");
+}
 
-           'help'            =>  \&help,
-           'bighelp'         =>  \&bighelp,
-           );
 if($mpd->status->playlistlength < 1) {
   print "Your playlist seems empty. Let us add some music!\n";
   sub listlen_help {
@@ -133,6 +142,24 @@ my $song_no       = $mpd->status->song;
 
 if($opt_information) {
   &information;
+}
+if($opt_show_playlist) {
+  &show_playlist;
+}
+if($opt_cp2port) {
+  &cp2port;
+}
+if($opt_favlist) {
+  &favlist;
+}
+if($opt_list_albums) {
+  &list_albums;
+}
+if($opt_play_song_from_pl) {
+  &play_song_from_pl;
+}
+if($opt_monitoring) {
+  &monitoring;
 }
 if($opt_randomize) {
   &randomize($opt_randomize);
@@ -310,7 +337,7 @@ sub scp_binary {
 
 sub cp2port {
   use File::Copy;
-  my $dir  = $ARGV[0] // $portable;
+  my $dir  = shift // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
     return scp1($remote_host, $basedir.$file, $dir);
@@ -333,7 +360,7 @@ sub favlist {
   exit 0;
 }
 
-sub listalbums {
+sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
   my @albums = sort($mpd->collection->albums_by_artist($artist));
   print "$clr[1]$artist$clr[9] is featured on:\n\n";
@@ -588,6 +615,8 @@ sub help {
     -spl, --search-pl   search the active playlist for <pattern>
     -sdb, --search-db   search the database for <pattern> and add the 
                         results to active playlist
+
+      -n, --nocolor     do not use colorized output
 
       -h, --help        show this help
 
