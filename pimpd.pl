@@ -92,7 +92,7 @@ if($opt_color) {
 }
 
 if($mpd->status->playlistlength < 1) {
-  print "Your playlist seems empty. Let us add some music!\n";
+  print "Your playlist looks empty. Let's add some music!\n";
   sub listlen_help {
     print << 'FOO';
     OPTIONS:
@@ -130,27 +130,6 @@ FOO
   }
 }
 
-my $notag         = $clr[0].'undef'.$clr[9]; 
-my $curr_artist   = $mpd->current->artist  // $notag;
-my $curr_album    = $mpd->current->album   // $notag;
-my $curr_title    = $mpd->current->title   // $notag;
-my $curr_genre    = $mpd->current->genre   // $notag;
-my $curr_file     = $mpd->current->file;
-my $curr_date     = $mpd->current->date    // $notag;
-my $curr_rate     = $mpd->status->bitrate  // $notag;
-my $curr_time     = $mpd->status->time->sofar.'/'.$mpd->status->time->total;
-my $curr_audio    = $mpd->status->audio;
-my $stat_artists  = $mpd->stats->artists;
-my $stat_albums   = $mpd->stats->albums;
-my $stat_songs    = $mpd->stats->songs;
-my $status_rep    = $mpd->status->repeat;
-my $status_rnd    = $mpd->status->random;
-my $status_xfade  = $mpd->status->xfade;
-my $status_volume = $mpd->status->volume.'%';
-my $state         = $mpd->status->state;
-my $status_pl_ver = $mpd->status->playlist;
-my $status_pl_len = $mpd->status->playlistlength.' songs';
-my $song_no       = $mpd->status->song;
 
 if($opt_information) {
   &information;
@@ -178,8 +157,7 @@ if($opt_randomize) {
 }
 if(@opt_add_playlist) {
   &add_playlist(@opt_add_playlist);
-}
-
+} 
 if(@opt_queue) {
   &queue(@opt_queue);
 }
@@ -196,40 +174,74 @@ if($search_db_pattern) {
   &search_database($search_db_pattern);
 }
 
- sub information {
-  if($curr_rate < 192) {
-    $curr_rate = $clr[0].$curr_rate.$clr[9];
+sub information {
+  my %current = ('artist'     =>  $mpd->current->artist,
+                 'album'      =>  $mpd->current->album,
+                 'title'      =>  $mpd->current->title,
+                 'genre'      =>  $mpd->current->genre,
+                 'file'       =>  $mpd->current->file,
+                 'date'       =>  $mpd->current->date,
+                 'time'       =>  $mpd->status->time->sofar.'/'.
+                                  $mpd->status->time->total,
+                 'bitrate'    =>  $mpd->status->bitrate,
+                 'audio'      =>  $mpd->status->audio,
+                 );
+  my %status  = ('repeat'     =>  $mpd->status->repeat,
+                 'shuffle'    =>  $mpd->status->random,
+                 'xfade'      =>  $mpd->status->xfade,
+                 'volume'     =>  $mpd->status->volume,
+                 'state'      =>  $mpd->status->state,
+                 'list'       =>  $mpd->status->playlist,
+                 );
+  my %stats   = ('song'       =>  $mpd->status->song,
+                 'length'     =>  $mpd->status->playlistlength,
+                 'songs'      =>  $mpd->stats->songs,
+                 'albums'     =>  $mpd->stats->albums,
+                 'artists'    =>  $mpd->stats->artists,
+                 );
+
+  if($current{'bitrate'} < 192) {
+    $current{'bitrate'} = $clr[0].$current{'bitrate'}.$clr[9];
   }
-  
-  # We're truncating lines that'll span over 80 columns. 80-14=66.
-  printf("$clr[0]S$clr[9] %10s %.66s \n", 'Artist:', $curr_artist); 
-  printf("$clr[0]O$clr[9] %10s %.66s \n", 'Album:', $curr_album);
-  printf("$clr[0]N$clr[9] %10s %.66s \n", 'Song:', $curr_title);
-  printf("$clr[0]G$clr[9] %10s %.66s \n", 'Genre:', $curr_genre);
-  printf("$clr[0] $clr[9] %10s %.66s \n", 'File:', $curr_file);
-  printf("$clr[0]I$clr[9] %10s %.66s \n", 'Year:', $curr_date);
-  printf("$clr[0]N$clr[9] %10s %.66s \n", 'Time:', $curr_time);
-  printf("$clr[0]F$clr[9] %10s %.66s \n", 'Bitrate:', $curr_rate);
-  printf("$clr[0]O$clr[9] %10s %.66s \n", 'Audio:', $curr_audio);
+  foreach my $tag(keys(%current)) {
+    if(!$current{$tag}) {
+      $current{$tag} = $clr[0].'undef'.$clr[9];
+    }
+  }
+  if($status{state} eq 'play') {
+    $status{state} = 'playing';
+  }
+  if($status{state} eq 'stop') {
+    $status{state} = 'stopped';
+  }
+  if($status{state} eq 'pause') {
+    $status{state} = 'paused';
+  }
+  printf("$clr[4]S%10s$clr[9] %.66s \n", 'Artist:', $current{artist});
+  printf("$clr[4]O%10s$clr[9] %.66s \n", 'Album:' , $current{album});
+  printf("$clr[4]N%10s$clr[9] %.66s \n", 'Song:'  , $current{title});
+  printf("$clr[4]G%10s$clr[9] %.66s \n", 'Genre:' , $current{genre});
+  printf("$clr[4] %10s$clr[9] %.66s \n", 'File:'  , $current{file});
+  printf("$clr[4]I%10s$clr[9] %.66s \n", 'Year:'  , $current{date});    
+  printf("$clr[4]N%10s$clr[9] %.66s \n", 'Time:'  , $current{time});
+  printf("$clr[4]F%10s$clr[9] %.66s \n", 'Rate:'  , $current{bitrate});
+  printf("$clr[4]O%10s$clr[9] %.66s \n", 'Audio:' , $current{audio});
+  print '-' x 25, "\n";
+  printf("$clr[3]S%10s$clr[9] %.66s \n", 'Repeat:', $status{repeat});
+  printf("$clr[3]T%10s$clr[9] %.66s \n", 'Shuffle:',$status{shuffle}); 
+  printf("$clr[3]A%10s$clr[9] %.66s \n", 'Xfade:', $status{xfade});
+  printf("$clr[3]T%10s$clr[9] %.66s \n", 'Volume:', $status{volume});
+  printf("$clr[3]U%10s$clr[9] %.66s \n", 'State:', $status{state});
+  printf("$clr[3]S%10s$clr[9] %.66s \n", 'List V:', $status{list});
+  print '-' x 25, "\n";
+  printf("$clr[2]S%10s$clr[9] %.66s \n", 'Song:', $stats{song});
+  printf("$clr[2]T%10s$clr[9] %.66s \n", 'List:', $stats{length} . ' songs');
+  printf("$clr[2]A%10s$clr[9] %.66s \n", 'Songs:', $stats{songs});
+  printf("$clr[2]T%10s$clr[9] %.66s \n", 'Albums:', $stats{albums});
+  printf("$clr[2]S%10s$clr[9] %.66s \n", 'Artists:', $stats{artists});
 
-  print "$clr[9]-" x 30, "\n";
-  printf("$clr[4]S$clr[9] %10s %.66s \n", 'Repeat:', $status_rep);
-  printf("$clr[4]T$clr[9] %10s %.66s \n", 'Shuffle:', $status_rnd);
-  printf("$clr[4]A$clr[9] %10s %.66s \n", 'Xfade:', $status_xfade);
-  printf("$clr[4]T$clr[9] %10s %.66s \n", 'Volume:', $status_volume);
-  printf("$clr[4]U$clr[9] %10s %.66s \n", 'State:', ucfirst($state));
-  printf("$clr[4]S$clr[9] %10s %.66s \n", 'List #:', $status_pl_ver); 
-
-  print "$clr[9]-" x 30, "\n";
-  printf("$clr[2]S$clr[9] %10s %.66s \n", 'Song #:', $song_no);
-  printf("$clr[2]T$clr[9] %10s %.66s \n", 'PL Length:', $status_pl_len);
-  printf("$clr[2]A$clr[9] %10s %.66s \n", 'Songs:', $stat_songs);
-  printf("$clr[2]T$clr[9] %10s %.66s \n", 'Albums:', $stat_albums);
-  printf("$clr[2]S$clr[9] %10s %.66s \n", 'Artists:', $stat_artists);
-
-  exit 0;
-
- }
+exit 0;
+}
 
 sub randomize {
   my $count = shift // 100;
@@ -243,8 +255,8 @@ sub randomize {
   my $message = "Added $count random songs:\n\n";
   &show_playlist($message);
   exit 0;
-}
-
+} 
+ 
 sub show_playlist {
   my $header = shift;
   if($header eq 'show') {
