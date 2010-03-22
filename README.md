@@ -16,6 +16,10 @@ mpc is missing. This includes, but is not limited to:
     musicplayer of choice or maybe to your to-burn directory
   * Huge load of interesting information regarding what's currently spinning
 
+![screenshot](http://github.com/trapd00r/pimpd/raw/master/pimpd-1.0-screenshot.png)
+
+
+
 Please see below for a full list of options.
 
     Usage: pimpd.pl [OPTIONS] (ARGUMENT)
