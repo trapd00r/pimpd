@@ -4,13 +4,16 @@
 # As specified in mpd.conf
 our $basedir      = '/mnt/Music_1';
 our $playlist_dir = '/mnt/Music_1/Playlists';
+
 # If no name is specified for playlist, and track is missing id3-field
 # 'genre', use this.
 our $fallback_playlist = 'random';
-# Portable player mountpoint
+
+# Default location for the --copy command.
+# Your portable player, /tmp/burn, or what you prefer
 our $portable     = '/mnt/mp3/MUSIC'; 
 
-# ssh credentials (optional)
+# ssh credentials (optional, for the --copy command)
 our $remote_host  = undef;
 our $remote_pass  = 'mpd_pass';
 our $remote_user  = 'ssh_user';
