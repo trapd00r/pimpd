@@ -57,7 +57,7 @@ else {
 
 our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
-     $opt_randomize, @opt_add_playlist, $opt_show_playlist, $opt_cp2port,
+     $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
      $opt_color);
 
@@ -65,7 +65,7 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
 # :{,} == zero or more
 GetOptions('information'      =>  \$opt_information,
            'randomize:i'      =>  \$opt_randomize,
-           'copy'             =>  \$opt_cp2port,
+           'copy'             =>  \&cp2port,
            'favorite'         =>  \$opt_favlist,
            'listalbums'       =>  \$opt_list_albums,
            'show'             =>  \$opt_show_playlist,
@@ -136,9 +136,6 @@ if($opt_information) {
 }
 if($opt_show_playlist) {
   &show_playlist;
-}
-if($opt_cp2port) {
-  &cp2port;
 }
 if($opt_favlist) {
   &favlist;
@@ -361,13 +358,13 @@ sub scp_binary {
 
 sub cp2port {
   use File::Copy;
-  my $dir  = shift // $portable;
+  my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
     return scp1($remote_host, $basedir.$file, $dir);
   }
   chomp($file);
-  copy("$basedir/$file", $dir) || die "Failure: $! \n";
+  copy("$basedir/$file", $dir) or die "Failure: $! \n";
 
   exit 0;
 }
