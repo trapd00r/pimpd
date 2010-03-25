@@ -378,7 +378,6 @@ sub favlist {
   print PLAYLIST $filepath, "\n";
   close PLAYLIST;
   my $history_path = "$playlist_dir/$history_playlist";
-  print $history_path;
   open HISTORY, ">>$history_path\.m3u" or die 
                                        "Could not open history: $!\n";
   print HISTORY $filepath, "\n";
