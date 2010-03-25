@@ -1,1 +1,1 @@
-cpan Audio::MPD LWP::Simple HTML::TokeParser::Simple Text::Wrap 
+cpan Audio::MPD LWP::Simple HTML::TokeParser::Simple Text::Autoformat
