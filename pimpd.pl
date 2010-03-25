@@ -17,10 +17,10 @@ use strict;
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###############################################################################
 # External modules that'll be used later on
-# LWP::Simple, HTML::TokeParser::Simple, Text::Wrap 
+# LWP::Simple, HTML::TokeParser::Simple, Text::Autoformat
 
 my $APPLICATION_NAME    = 'pimpd';
-my $APPLICATION_VERSION = '1.2.0';
+my $APPLICATION_VERSION = '1.2.5';
 
 use Audio::MPD;
 use List::Util qw(shuffle);
@@ -408,7 +408,7 @@ sub play_song_from_pl {
 sub lyrics {
   use LWP::Simple;
   use HTML::TokeParser::Simple;
-  use Text::Wrap;
+  use Text::Autoformat qw(autoformat);
   my $artist = $mpd->current->artist;
   my $song   = $mpd->current->title;
   my $url = "http://lyricsplugin.com/winamp03/plugin/?artist=".
@@ -424,10 +424,22 @@ sub lyrics {
 # 26 elements if no text
   if(scalar(@lyrics)<27) {
     print "Sorry, no lyrics found.\n";
+    exit 0;
   }
-  $Text::Wrap::columns = 80;
-  print wrap('', '', @lyrics[12..@lyrics-13]);
-  exit 0;
+  
+  # autoformat doesnt seem to handle arrays :/
+  my @foobar = (@lyrics[12..@lyrics-13]);
+  my $foo = join("", @foobar);
+
+  printf("%2s by %s:\n", $song, $artist);
+  print autoformat $foo, {left     => 0,
+                          right    => 80,
+                          all      => 1,
+                          justify  => 'centre',
+                          fill     => 0,
+                          tabspace => 2,
+                          case     => 'sentence'};
+   exit 0;
 } 
 
 sub monitoring {
