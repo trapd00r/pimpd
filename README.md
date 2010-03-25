@@ -55,7 +55,8 @@ To install the dependencies:
 
 or use your package manager of choice.
 In archlinux, you could just use:
-    $ yaourt -S perl-html-tokeparser-simple perl-audio-mpd perl-libwww perl-text-wrapi18n
+    $ yaourt -S perl-html-tokeparser-simple perl-audio-mpd perl-libwww
+                perl-text-autoformat
 
 To install pimpd:
   Copy the configuration file to either /etc/pimpd.conf or
