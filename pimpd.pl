@@ -42,7 +42,7 @@ else {
 
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
-     $remote_host, $remote_pass, $remote_user);
+     $remote_host, $remote_pass, $remote_user, $history_playlist);
 
 
 my $mpd;
@@ -373,9 +373,16 @@ sub favlist {
   my $playlist = $ARGV[0] // lc($mpd->current->genre) // $fallback_playlist;
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
-  open PLAYLIST, ">>$fullpath\.m3u" || die "$!";
+  open PLAYLIST, ">>$fullpath\.m3u" or die 
+                                    "Could not open playlist: $!\n";
   print PLAYLIST $filepath, "\n";
   close PLAYLIST;
+  my $history_path = "$playlist_dir/$history_playlist";
+  print $history_path;
+  open HISTORY, ">>$history_path\.m3u" or die 
+                                       "Could not open history: $!\n";
+  print HISTORY $filepath, "\n";
+  close HISTORY;
   print $clr[1].$filepath,$clr[9].' >> ',$clr[3]."$fullpath\.m3u",$clr[0], "\n";
 
   exit 0;
