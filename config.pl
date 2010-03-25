@@ -12,7 +12,7 @@ our $fallback_playlist = 'random';
 # Used for history. Use standard unix tools to have fun with it.
 # i.e; for x in $(tail -15 /mnt/Music_1/Playlists/history.m3u); \
 #      do cp /mnt/Music_1/$x /mnt/mp3; done
-#
+# to copy the 15 latest tracks to your mp3-player
 our $history_playlist  = 'loved.history';
 
 # Default location for the --copy command.
