@@ -9,6 +9,12 @@ our $playlist_dir = '/mnt/Music_1/Playlists';
 # 'genre', use this.
 our $fallback_playlist = 'random';
 
+# Used for history. Use standard unix tools to have fun with it.
+# i.e; for x in $(tail -15 /mnt/Music_1/Playlists/history.m3u); \
+#      do cp /mnt/Music_1/$x /mnt/mp3; done
+#
+our $history_playlist  = 'loved.history';
+
 # Default location for the --copy command.
 # Your portable player, /tmp/burn, or what you prefer
 our $portable     = '/mnt/mp3/MUSIC'; 
