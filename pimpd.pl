@@ -40,7 +40,8 @@ else {
 
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
-     $remote_host, $remote_pass, $remote_user, $history_playlist);
+     $remote_host, $remote_pass, $remote_user, $history_playlist,
+     $opt_color, @clr);
 
 
 my $mpd;
@@ -57,7 +58,7 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
-     $opt_color, @clr);
+     );
 
 
 # :{,} == zero or more
@@ -483,7 +484,8 @@ sub queue {
     
     my $nextpos = $to_play[$argc];
     print &currently_playing, "\n";
-    printf(">>> %s - %s - %s\n", $tracksinlist[$nextpos]->artist,
+    printf("$clr[13]>>> %s - %s - %s $clr[9]\n",
+                                 $tracksinlist[$nextpos]->artist,
                                  $tracksinlist[$nextpos]->album,
                                  $tracksinlist[$nextpos]->title)
     unless scalar(@to_play) == $argc;
