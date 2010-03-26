@@ -24,6 +24,19 @@ our $remote_host  = undef;
 our $remote_pass  = 'mpd_pass';
 our $remote_user  = 'ssh_user';
 
+# colorscheme
+our @clr;
+$clr[0] = "\033[31m";
+$clr[1] = "\033[31;1m";
+$clr[2] = "\033[32m";
+$clr[3] = "\033[32;1m";
+$clr[4] = "\033[33m";
+$clr[5] = "\033[34m";
+$clr[6] = "\033[34;1m";
+$clr[7] = "\033[36m";
+$clr[8] = "\033[36;1m";
+$clr[9] = "\033[0m";
+
 # If you never want any coloured output, set this to 1
 our $opt_color    = 0;
 1;

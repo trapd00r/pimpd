@@ -1,5 +1,3 @@
-#!/usr/bin/perl 
-use strict;
 # pimpd - Perl Interface for the Music Player Daemon
 # Copyright (C) 2010 trapd00r <trapd00r@trapd00r.se>
 #
@@ -59,7 +57,7 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
-     $opt_color);
+     $opt_color, @clr);
 
 
 # :{,} == zero or more
@@ -84,8 +82,6 @@ GetOptions('information'      =>  \$opt_information,
            'bighelp'          =>  \&bighelp,
            );
 
-my @clr = ("\033[31m", "\033[31;1m", "\033[32m", "\033[32;1m", "\033[33m",
-           "\033[34m", "\033[34;1m", "\033[36m", "\033[36;1m", "\033[0m");
 
 if($opt_color) {
   @clr = ("\033[0m");
