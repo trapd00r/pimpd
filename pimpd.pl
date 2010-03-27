@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+use strict;
 # pimpd - Perl Interface for the Music Player Daemon
 # Copyright (C) 2010 trapd00r <trapd00r@trapd00r.se>
 #
