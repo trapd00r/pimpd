@@ -129,46 +129,20 @@ FOO
   }
 }
 
+&information                                 if $opt_information;
+&show_playlist                               if $opt_show_playlist;
+&favlist                                     if $opt_favlist;
+&list_albums                                 if $opt_list_albums;
+&play_song_from_pl                           if $opt_play_song_from_pl;
+&monitoring                                  if $opt_monitoring;
+&randomize($opt_randomize)                   if $opt_randomize;
+&add_playlist(@opt_add_playlist)             if @opt_add_playlist;
+&queue(@opt_queue)                           if @opt_queue;
+&ctrl                                        if $opt_ctrl;
+&list_external_list(@opt_list_external_list) if @opt_list_external_list;
+&search_active_pl($search_pl_pattern)        if $search_pl_pattern;
+&search_database($search_db_pattern)         if $search_db_pattern;
 
-if($opt_information) {
-  &information;
-}
-if($opt_show_playlist) {
-  &show_playlist;
-}
-if($opt_favlist) {
-  &favlist;
-}
-if($opt_list_albums) {
-  &list_albums;
-}
-if($opt_play_song_from_pl) {
-  &play_song_from_pl;
-}
-if($opt_monitoring) {
-  &monitoring;
-}
-if($opt_randomize) {
-  &randomize($opt_randomize);
-}
-if(@opt_add_playlist) {
-  &add_playlist(@opt_add_playlist);
-} 
-if(@opt_queue) {
-  &queue(@opt_queue);
-}
-if($opt_ctrl) {
-  &ctrl;
-}
-if(@opt_list_external_list) {
-  &list_external_list(@opt_list_external_list);
-}
-if($search_pl_pattern) {
-  &search_active_pl($search_pl_pattern);
-}
-if($search_db_pattern) {
-  &search_database($search_db_pattern);
-}
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
