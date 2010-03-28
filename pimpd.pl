@@ -36,12 +36,12 @@ if($DEBUG eq 1) {
   require "config.pl";
 }
 else {
-  eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";};
+  eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";};
     if($@) {
       require "/etc/pimpd.conf";
     }
     else {
-      require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
+      require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";
     }
 }
 

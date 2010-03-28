@@ -1,5 +1,5 @@
 ## pimpd configuration file
-## Location should be $XDG_CONFIG_HOME/pimpd/config.pl or /etc/pimpd.conf
+## Location should be $XDG_CONFIG_HOME/pimpd/pimpd.conf or /etc/pimpd.conf
 
 our $basedir      = '/mnt/Music_1';       # as specified in mpd.conf 
 our $playlist_dir = "$basedir/Playlists"; # as specified in mpd.conf

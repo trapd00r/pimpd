@@ -62,7 +62,7 @@ In archlinux, you could just use:
 
 To install pimpd:
   Copy the configuration file to either /etc/pimpd.conf or
-  $XDG_CONFIG_HOME/pimpd/config.pl
+  $XDG_CONFIG_HOME/pimpd/pimpd.conf
 
   Copy pimpd.pl to /usr/bin or any other location you prefer in your $PATH
 
