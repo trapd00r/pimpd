@@ -15,6 +15,8 @@ mpc is missing. This includes, but is not limited to:
   * Ability to easily copy current track to specified location; i.e your portable  
     musicplayer of choice or maybe to your to-burn directory
   * Huge load of interesting information regarding what's currently spinning
+  * Support for 256 colors
+  * Support for colorschemes
 
 ![screenshot](http://github.com/trapd00r/pimpd/raw/master/pimpd-1.0-screenshot.png)
 

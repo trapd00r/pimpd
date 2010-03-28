@@ -20,7 +20,8 @@ use strict;
 # LWP::Simple, HTML::TokeParser::Simple, Text::Autoformat
 
 my $APPLICATION_NAME    = 'pimpd';
-my $APPLICATION_VERSION = '1.2.5';
+my $APPLICATION_VERSION = '1.3.0';
+my $DEBUG = 0;
 
 use Audio::MPD;
 use List::Util qw(shuffle);
@@ -31,12 +32,17 @@ if(!@ARGV) {
   &help;
 }
 
-eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";};
-if($@) {
-  require "/etc/pimpd.conf";
+if($DEBUG eq 1) {
+  require "config.pl";
 }
 else {
-  require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
+  eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";};
+    if($@) {
+      require "/etc/pimpd.conf";
+    }
+    else {
+      require "$ENV{'XDG_CONFIG_HOME'}/pimpd/config.pl";
+    }
 }
 
 
