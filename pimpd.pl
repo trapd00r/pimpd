@@ -66,31 +66,32 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
-     $opt_np,
+     $opt_np, $opt_searchAlbum,
      );
 
 
 # :{,} == zero or more
-GetOptions('information'      =>  \$opt_information,
-           'np'               =>  \$opt_np,
-           'randomize:i'      =>  \$opt_randomize,
-           'copy'             =>  \&cp2port,
-           'favorite'         =>  \$opt_favlist,
-           'listalbums'       =>  \$opt_list_albums,
-           'show'             =>  \$opt_show_playlist,
-           'play'             =>  \$opt_play_song_from_pl,
-           'add=s{1,}'        =>  \@opt_add_playlist,
-           'monitor'          =>  \$opt_monitoring,
-           'queue=i{1,}'      =>  \@opt_queue,
-           'lyrics'           =>  \&lyrics,
-           'ctrl'             =>  \$opt_ctrl,
-           'external=s{1,}'   =>  \@opt_list_external_list,                          
-           'spl|search-pl=s'  =>  \$search_pl_pattern,
-           'sdb|search-db=s'  =>  \$search_db_pattern,
-           'no-color|nocolor' =>  \$opt_color,
+GetOptions('information'        =>  \$opt_information,
+           'np'                 =>  \$opt_np,
+           'randomize:i'        =>  \$opt_randomize,
+           'copy'               =>  \&cp2port,
+           'favorite'           =>  \$opt_favlist,
+           'listalbums'         =>  \$opt_list_albums,
+           'show'               =>  \$opt_show_playlist,
+           'play'               =>  \$opt_play_song_from_pl,
+           'add=s{1,}'          =>  \@opt_add_playlist,
+           'monitor'            =>  \$opt_monitoring,
+           'queue=i{1,}'        =>  \@opt_queue,
+           'lyrics'             =>  \&lyrics,
+           'ctrl'               =>  \$opt_ctrl,
+           'external=s{1,}'     =>  \@opt_list_external_list,                          
+           'spl|search-pl=s'    =>  \$search_pl_pattern,
+           'sdb|search-db=s'    =>  \$search_db_pattern,
+           'sal|search-album=s' => \$opt_searchAlbum,
+           'no-color|nocolor'   =>  \$opt_color,
 
-           'help'             =>  \&help,
-           'bighelp'          =>  \&bighelp,
+           'help'               =>  \&help,
+           'bighelp'            =>  \&bighelp,
            );
 
 
@@ -151,6 +152,7 @@ print &currently_playing, "\n"               if $opt_np;
 &list_external_list(@opt_list_external_list) if @opt_list_external_list;
 &search_active_pl($search_pl_pattern)        if $search_pl_pattern;
 &search_database($search_db_pattern)         if $search_db_pattern;
+&searchAlbum($opt_searchAlbum)               if $opt_searchAlbum;
 
 
 sub information {
@@ -258,7 +260,7 @@ sub show_playlist {
     ++$i;
     
 # 80 columns
-    printf"%03i $clr[5]%25.25s $clr[9]| $clr[1]%-47.47s $clr[9] \n",
+    printf"%03i $clr[4]%25.25s $clr[9]| $clr[6]%-47.47s $clr[9] \n",
           $i,$artist, $title;
   }
   print "\n", &currently_playing, "\n";
@@ -603,6 +605,22 @@ sub search_database {
   exit 0;
 }
 
+sub searchAlbum {
+  my $album  = shift;
+  my @tracks = $mpd->collection->songs_from_album_partial($album); 
+  if(!@tracks) {
+    print "$album: no tracks found\n";
+    exit 1;
+  }
+  foreach my $track(@tracks) {
+    print $track->file, "\n";
+  }
+  print $clr[1],scalar(@tracks)-1, $clr[9],
+        " tracks found on album(s) matching $clr[3]$album $clr[9]\n";
+  exit 0;
+}
+
+
 sub currently_playing {
   my $artist  = $clr[3].$mpd->current->artist.$clr[9] // 'undef';
   my $song    = $clr[4].$mpd->current->title.$clr[9]  // 'undef';
@@ -620,27 +638,28 @@ sub help {
   Usage: $0 [OPTIONS] (ARGUMENT)
 
   OPTIONS:
-      -i, --info        print current information
-     -np, --current     print current information in one line
-      -r, --randomize   randomize a new playlist with <integer> tracks
-      -c, --copy        copy the current track to location <string> 
-      -f, --favorite    favorize the current track. If no name for the
-                        playlist is given, the 'genre' id3-tag is used
-      -l, --listalbums  list all albums by <string> or current artist
-      -s, --show        show current playlist
-      -p, --play        play the number <integer> track in playlist
-      -a, --add         add playlist <string> and play it
-      -m, --monitor     monitor MPD for song changes, output on STDOUT
-     -ly, --lyrics      show lyrics for the current song
-      -q, --queue       queue <integer> tracks in playlist
-      -e, --external    list all tracks in external playlist <string>
-     -ct, --ctrl        spawn the interactive pimpd shell 
-    -spl, --search-pl   search the active playlist for <pattern>
-    -sdb, --search-db   search the database for <pattern> and add the 
-                        results to active playlist
-     -no, --nocolor     dont use colorized output
+      -i, --info         print current information
+     -np, --current      print current information in one line
+      -r, --randomize    randomize a new playlist with <integer> tracks
+      -c, --copy         copy the current track to location <string> 
+      -f, --favorite     favorize the current track. If no name for the
+                         playlist is given, the 'genre' id3-tag is used
+      -l, --listalbums   list all albums by <string> or current artist
+      -s, --show         show current playlist
+      -p, --play         play the number <integer> track in playlist
+      -a, --add          add playlist <string> and play it
+      -m, --monitor      monitor MPD for song changes, output on STDOUT
+     -ly, --lyrics       show lyrics for the current song
+      -q, --queue        queue <integer> tracks in playlist
+      -e, --external     list all tracks in external playlist <string>
+     -ct, --ctrl         spawn the interactive pimpd shell 
+    -spl, --search-pl    search the active playlist for <pattern>
+    -sdb, --search-db    search the database for <pattern> and add the 
+                         results to active playlist
+    -sal, --search-album retrieves all tracks found on album <partial string>
+     -no, --nocolor      dont use colorized output
 
-      -h, --help        show this help
+      -h, --help         show this help
 
   PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
 HELP
