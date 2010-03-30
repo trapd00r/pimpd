@@ -66,11 +66,13 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
+     $opt_np,
      );
 
 
 # :{,} == zero or more
 GetOptions('information'      =>  \$opt_information,
+           'np'               =>  \$opt_np,
            'randomize:i'      =>  \$opt_randomize,
            'copy'             =>  \&cp2port,
            'favorite'         =>  \$opt_favlist,
@@ -135,6 +137,7 @@ FOO
   }
 }
 
+print &currently_playing, "\n"               if $opt_np;
 &information                                 if $opt_information;
 &show_playlist                               if $opt_show_playlist;
 &favlist                                     if $opt_favlist;
@@ -618,6 +621,7 @@ sub help {
 
   OPTIONS:
       -i, --info        print current information
+     -np, --current     print current information in one line
       -r, --randomize   randomize a new playlist with <integer> tracks
       -c, --copy        copy the current track to location <string> 
       -f, --favorite    favorize the current track. If no name for the
@@ -634,7 +638,7 @@ sub help {
     -spl, --search-pl   search the active playlist for <pattern>
     -sdb, --search-db   search the database for <pattern> and add the 
                         results to active playlist
-      -n, --nocolor     dont use colorized output
+     -no, --nocolor     dont use colorized output
 
       -h, --help        show this help
 
