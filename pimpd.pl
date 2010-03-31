@@ -106,11 +106,13 @@ if($mpd->status->playlistlength < 1) {
   sub listlen_help {
     print << 'FOO';
     OPTIONS:
-      randomize <number>    randomize a new playlist with <number> tracks
+      rand <integer>        randomize a new playlist with <integer> tracks
       add <string>          add <string> playlist(s)
-      search <pattern>      search the database for <pattern>. 
-                            Note that you shouldn't escape the pattern like
-                            in the shell; f(oo)?b.r will do just fine.
+      sdb <pattern>         search the database for <pattern>. 
+      sar <pattern>         search for artists matching <pattern>
+      sal <pattern>         search for albums matching <pattern>
+      set <pattern>         search for titles matching <pattern>
+
 FOO
   }
   &listlen_help;
@@ -119,20 +121,40 @@ FOO
   while(<STDIN>) {
     my $action = $_;
   
-    if($action =~ /^search\s+(.+)/) {
+    if($action =~ /^sdb\s+(.+)/) {
       my $search = $1;
       &search_database($search);
+      exit 0;
     }
     elsif($action =~  /^randomize\s+(.+)/) {
       my $no = $1;
       &randomize($no);
+      exit 0;
     }
     elsif($action =~ /add\s+(.+)/) {
       my $list = $1;
       my @lists = split(/\s/, $list);
       &add_playlist(@lists);
+      exit 0;
     }
-
+    elsif($action =~ /set\s+(.+)/) {
+      my $search = $1;
+      &searchTitle($search);
+      $mpd->play;
+      exit 0;
+    }
+    elsif($action =~ /sar\s+(.+)/) {
+      my $search = $1;
+      &searchArtist($search);
+      $mpd->play;
+      exit 0;
+    }
+    elsif($action =~ /sal\s+(.+)/) {
+      my $search = $1;
+      &searchAlbum($search);
+      $mpd->play;
+      exit 0;
+    }
     else {
       &listlen_help;
       print 'pimpd> ';
@@ -613,49 +635,48 @@ sub searchAlbum {
   my $search = shift;
   my @tracks = $mpd->collection->songs_from_album_partial($search); 
   if(!@tracks) {
-    print "$clr[2]$search$clr[9]: no tracks found\n";
+    print ">> $clr[2]$search$clr[9]: no tracks found\n";
     exit 1;
   }
   my @files;
   foreach my $track(@tracks) {
     push(@files, $track->file);
   }
-  print $clr[1],scalar(@tracks)-1, $clr[9],
-        " tracks found on album(s) matching $clr[3]$search $clr[9]\n";
   &pipeAdd(@files);
-  exit 0;
+  print ">> ", $clr[1], scalar(@files), $clr[9],
+        " albums found matching $clr[3]$search $clr[9]\n";
 }
 
 sub searchArtist {
   my $search = shift;
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
-    print "$clr[2]$search$clr[9]: nothing found\n";
+    print ">> $clr[2]$search$clr[9]: nothing found\n";
     exit 1;
   }
   my @files;
   foreach my $artist(@artists) {
     push(@files, $artist->file);
   }
-  print $clr[1], scalar(@artists)-1, $clr[9], 
-        " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
   &pipeAdd(@files);
+  print ">> ", $clr[1], scalar(@artists)-1, $clr[9], 
+        " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
 }
 
-sub searchTitle {
+sub searchTitle  {
   my $search = shift;
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
-    print "$clr[2]$search$clr[9]: nothing found\n";
+    print ">> $clr[2]$search$clr[9]: nothing found\n";
     exit 1;
   }
   my @files;
   foreach my $song(@songs) {
     push(@files, $song->file);
   }
-  print $clr[1], scalar(@songs)-1, $clr[9],
-        " titles found matching $clr[3]$search $clr[9]\n";
   &pipeAdd(@files);
+  print ">> ", $clr[1], scalar(@songs)-1, $clr[9],
+        " titles found matching $clr[3]$search $clr[9]\n";
 }
 
 sub pipeAdd {
@@ -664,7 +685,7 @@ sub pipeAdd {
     print $file, "\n";
     $mpd->playlist->add($file);
   }
-}
+} 
   
 sub currently_playing {
   my $artist  = $clr[3].$mpd->current->artist.$clr[9] // 'undef';
