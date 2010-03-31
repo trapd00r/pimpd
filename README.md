@@ -6,6 +6,7 @@ mpc is missing. This includes, but is not limited to:
 
   * Regular expression based database queries
   * Regular expression based searches in active playlist
+  * Quick searches for artist, album and title
   * Randomizing of playlist; you could add 100 (carefully!) randomly selected
     tracks to your playlist
   * Fetching of lyrics on demand
@@ -23,30 +24,33 @@ mpc is missing. This includes, but is not limited to:
 
 
 Please see below for a full list of options.
-
     Usage: pimpd.pl [OPTIONS] (ARGUMENT)
 
     OPTIONS:
-        -i, --info        print current information
-        -r, --randomize   randomize a new playlist with <integer> tracks
-        -c, --copy        copy the current track to location <string> 
-        -f, --favorite    favorize the current track. If no name for the
-                          playlist is given, the 'genre' id3-tag is used
-        -l, --listalbums  list all albums by <string> or current artist
-        -s, --show        show current playlist
-        -p, --play        play the number <integer> track in playlist
-        -a, --add         add playlist <string> and play it
-        -m, --monitor     monitor MPD for song changes, output on STDOUT
-       -ly, --lyrics      show lyrics for the current song
-        -q, --queue       queue <integer> tracks in playlist
-        -e, --external    list all tracks in external playlist <string>
-       -ct, --ctrl        spawn the interactive pimpd shell 
-      -spl, --search-pl   search the active playlist for <pattern>
-      -sdb, --search-db   search the database for <pattern> and add the 
-                          results to active playlist
-        -n, --nocolor     dont use colorized output
+        -i, --info          print current information
+       -np, --current       print current information in one line
+        -r, --randomize     randomize a new playlist with <integer> tracks
+        -c, --copy          copy the current track to location <string> 
+        -f, --favorite      favorize the current track. If no name for the
+                            playlist is given, the 'genre' id3-tag is used
+        -l, --listalbums    list all albums by <string> or current artist
+        -s, --show          show current playlist
+        -p, --play          play the number <integer> track in playlist
+        -a, --add           add playlist <string> and play it
+        -m, --monitor       monitor MPD for song changes, output on STDOUT
+       -ly, --lyrics        show lyrics for the current song
+        -q, --queue         queue <integer> tracks in playlist
+        -e, --external      list all tracks in external playlist <string>
+       -ct, --ctrl          spawn the interactive pimpd shell 
+      -spl, --search-pl     search the active playlist for <pattern>
+      -sdb, --search-db     search the database for <pattern> and add the 
+                            results to active playlist
+      -sar, --search-artist search for artist name containing <string>
+      -sal, --search-album  search for album name containing <string>
+      -set, --search-title  search for song title containing <string>
+       -no, --nocolor       dont use colorized output
 
-        -h, --help        show this help
+        -h, --help          show this help
 
     PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(d+)'
 
