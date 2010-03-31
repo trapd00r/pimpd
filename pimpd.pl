@@ -20,7 +20,7 @@ use strict;
 # LWP::Simple, HTML::TokeParser::Simple, Text::Autoformat
 
 my $APPLICATION_NAME    = 'pimpd';
-my $APPLICATION_VERSION = '1.3.0';
+my $APPLICATION_VERSION = '1.4';
 my $DEBUG = 0;
 
 use Audio::MPD;
@@ -66,7 +66,7 @@ our (@opt_queue, $opt_ctrl, @opt_list_external_list,
      $search_pl_pattern, $search_db_pattern, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_show_playlist,
      $opt_favlist, $opt_play_song_from_pl, $opt_monitoring, $opt_list_albums,
-     $opt_np, $opt_searchAlbum,
+     $opt_np, $opt_searchAlbum, $opt_searchArtist, $opt_searchTitle,
      );
 
 
@@ -87,7 +87,9 @@ GetOptions('information'        =>  \$opt_information,
            'external=s{1,}'     =>  \@opt_list_external_list,                          
            'spl|search-pl=s'    =>  \$search_pl_pattern,
            'sdb|search-db=s'    =>  \$search_db_pattern,
-           'sal|search-album=s' => \$opt_searchAlbum,
+           'sal|search-album=s' =>  \$opt_searchAlbum,
+           'sar|search-artist=s'=>  \$opt_searchArtist,
+           'set|search-title=s' =>  \$opt_searchTitle,
            'no-color|nocolor'   =>  \$opt_color,
 
            'help'               =>  \&help,
@@ -153,6 +155,8 @@ print &currently_playing, "\n"               if $opt_np;
 &search_active_pl($search_pl_pattern)        if $search_pl_pattern;
 &search_database($search_db_pattern)         if $search_db_pattern;
 &searchAlbum($opt_searchAlbum)               if $opt_searchAlbum;
+&searchArtist($opt_searchArtist)             if $opt_searchArtist;
+&searchTitle($opt_searchTitle)               if $opt_searchTitle;
 
 
 sub information {
@@ -606,21 +610,62 @@ sub search_database {
 }
 
 sub searchAlbum {
-  my $album  = shift;
-  my @tracks = $mpd->collection->songs_from_album_partial($album); 
+  my $search = shift;
+  my @tracks = $mpd->collection->songs_from_album_partial($search); 
   if(!@tracks) {
-    print "$album: no tracks found\n";
+    print "$clr[2]$search$clr[9]: no tracks found\n";
     exit 1;
   }
+  my @files;
   foreach my $track(@tracks) {
-    print $track->file, "\n";
+    push(@files, $track->file);
   }
   print $clr[1],scalar(@tracks)-1, $clr[9],
-        " tracks found on album(s) matching $clr[3]$album $clr[9]\n";
+        " tracks found on album(s) matching $clr[3]$search $clr[9]\n";
+  &pipeAdd(@files);
   exit 0;
 }
 
+sub searchArtist {
+  my $search = shift;
+  my @artists = $mpd->collection->songs_by_artist_partial($search);
+  if(!@artists) {
+    print "$clr[2]$search$clr[9]: nothing found\n";
+    exit 1;
+  }
+  my @files;
+  foreach my $artist(@artists) {
+    push(@files, $artist->file);
+  }
+  print $clr[1], scalar(@artists)-1, $clr[9], 
+        " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
+  &pipeAdd(@files);
+}
 
+sub searchTitle {
+  my $search = shift;
+  my @songs = $mpd->collection->songs_with_title_partial($search);
+  if(!@songs) {
+    print "$clr[2]$search$clr[9]: nothing found\n";
+    exit 1;
+  }
+  my @files;
+  foreach my $song(@songs) {
+    push(@files, $song->file);
+  }
+  print $clr[1], scalar(@songs)-1, $clr[9],
+        " titles found matching $clr[3]$search $clr[9]\n";
+  &pipeAdd(@files);
+}
+
+sub pipeAdd {
+  my @files = (@_);
+  foreach my $file(@files) {
+    print $file, "\n";
+    $mpd->playlist->add($file);
+  }
+}
+  
 sub currently_playing {
   my $artist  = $clr[3].$mpd->current->artist.$clr[9] // 'undef';
   my $song    = $clr[4].$mpd->current->title.$clr[9]  // 'undef';
@@ -638,28 +683,30 @@ sub help {
   Usage: $0 [OPTIONS] (ARGUMENT)
 
   OPTIONS:
-      -i, --info         print current information
-     -np, --current      print current information in one line
-      -r, --randomize    randomize a new playlist with <integer> tracks
-      -c, --copy         copy the current track to location <string> 
-      -f, --favorite     favorize the current track. If no name for the
-                         playlist is given, the 'genre' id3-tag is used
-      -l, --listalbums   list all albums by <string> or current artist
-      -s, --show         show current playlist
-      -p, --play         play the number <integer> track in playlist
-      -a, --add          add playlist <string> and play it
-      -m, --monitor      monitor MPD for song changes, output on STDOUT
-     -ly, --lyrics       show lyrics for the current song
-      -q, --queue        queue <integer> tracks in playlist
-      -e, --external     list all tracks in external playlist <string>
-     -ct, --ctrl         spawn the interactive pimpd shell 
-    -spl, --search-pl    search the active playlist for <pattern>
-    -sdb, --search-db    search the database for <pattern> and add the 
-                         results to active playlist
-    -sal, --search-album retrieves all tracks found on album <partial string>
-     -no, --nocolor      dont use colorized output
+      -i, --info          print current information
+     -np, --current       print current information in one line
+      -r, --randomize     randomize a new playlist with <integer> tracks
+      -c, --copy          copy the current track to location <string> 
+      -f, --favorite      favorize the current track. If no name for the
+                          playlist is given, the 'genre' id3-tag is used
+      -l, --listalbums    list all albums by <string> or current artist
+      -s, --show          show current playlist
+      -p, --play          play the number <integer> track in playlist
+      -a, --add           add playlist <string> and play it
+      -m, --monitor       monitor MPD for song changes, output on STDOUT
+     -ly, --lyrics        show lyrics for the current song
+      -q, --queue         queue <integer> tracks in playlist
+      -e, --external      list all tracks in external playlist <string>
+     -ct, --ctrl          spawn the interactive pimpd shell 
+    -spl, --search-pl     search the active playlist for <pattern>
+    -sdb, --search-db     search the database for <pattern> and add the 
+                          results to active playlist
+    -sar, --search-artist search for artist name containing <string>
+    -sal, --search-album  search for album name containing <string>
+    -set, --search-title  search for song title containing <string>
+     -no, --nocolor       dont use colorized output
 
-      -h, --help         show this help
+      -h, --help          show this help
 
   PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
 HELP
