@@ -125,7 +125,7 @@ FOO
       &searchDatabase($search);
       exit 0;
     }
-    elsif($action =~  /^randomize\s+(.+)/) {
+    elsif($action =~  /^rand\s+(.+)/) {
       my $no = $1;
       &randomize($no);
       exit 0;
@@ -173,8 +173,8 @@ print &currentlyPlaying, "\n"          if $opt_currentlyPlaying;
 &queue(@opt_queue)                     if @opt_queue;
 &ctrl                                  if $opt_ctrl;
 &listExternal(@opt_listExternal)       if @opt_listExternal;
-&searchPlaylist($opt_searchPlaylist)       if $opt_searchPlaylist;
-&searchDatabase($opt_searchDatabase)       if $opt_searchDatabase;
+&searchPlaylist($opt_searchPlaylist)   if $opt_searchPlaylist;
+&searchDatabase($opt_searchDatabase)   if $opt_searchDatabase;
 &searchAlbum($opt_searchAlbum)         if $opt_searchAlbum;
 &searchArtist($opt_searchArtist)       if $opt_searchArtist;
 &searchTitle($opt_searchTitle)         if $opt_searchTitle;
