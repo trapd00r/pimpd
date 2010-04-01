@@ -26,7 +26,7 @@ our $remote_user  = 'ssh_user';
 our $opt_color   = 0; # use colors, 1 to disable
 our $color256    = 0; # extended colors disabled, 1 to enable
 ## You can specify colorschemes this way
-#our $colorscheme = 'greyscale'; 
+#our $colorscheme = 'greyscale'; #
 
 ## Default ANSI escape sequences most terms can handle
 our @clr;
@@ -82,6 +82,24 @@ if($colorscheme eq 'greyscale') {
   $clr[12] = "\033[38;5;239m";
   $clr[13] = "\033[38;5;235m";
   $clr[14] = "\033[38;5;237m";
+}
+
+if($colorscheme eq 'girlie') {
+  $clr[0]  = "\033[38;5;190m";
+  $clr[1]  = "\033[38;5;191m";
+  $clr[2]  = "\033[38;5;197m";
+  $clr[3]  = "\033[38;5;198m";
+  $clr[4]  = "\033[38;5;199m";
+  $clr[5]  = "\033[38;5;089m";
+  $clr[6]  = "\033[38;5;090m";
+  $clr[7]  = "\033[38;5;101m";
+  $clr[8]  = "\033[38;5;154m";
+  $clr[9]  = "\033[38;5;167m";
+  $clr[10] = "\033[38;5;165m";
+  $clr[11] = "\033[38;5;162m";
+  $clr[12] = "\033[38;5;247m";
+  $clr[13] = "\033[38;5;110m";
+  $clr[14] = "\033[38;5;142m";
 }
 
 1;
