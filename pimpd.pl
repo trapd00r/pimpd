@@ -484,7 +484,7 @@ sub queue {
     print STDERR "The queue function requires at least one song \n";
     exit 1;
   }
-  my @tracksinlist = ($mpd->playlist->as_items);
+  my @tracksinlist = $mpd->playlist->as_items;
 
   my $argc         = 0;
 
@@ -700,6 +700,7 @@ sub currentlyPlaying {
 sub help {
   print << "HELP";
   $APPLICATION_NAME $APPLICATION_VERSION
+  Copyright (C) 2009-2010 Magnus Woldrich. Licensed under the GNU GPL version 2.
   Usage: $0 [OPTIONS] (ARGUMENT)
 
   OPTIONS:
