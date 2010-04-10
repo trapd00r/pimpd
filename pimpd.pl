@@ -49,7 +49,7 @@ else {
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @clr);
+     $opt_color, @clr, $daemon_cmd);
 
 
 my $mpd;
@@ -67,7 +67,7 @@ our (@opt_queue, $opt_ctrl, @opt_listExternal,
      $opt_randomize, @opt_addPlaylist, $opt_showPlaylist,
      $opt_favlist, $opt_playSongFromList, $opt_monitoring, $opt_listAlbums,
      $opt_currentlyPlaying, $opt_searchAlbum, $opt_searchArtist,
-     $opt_searchTitle,
+     $opt_searchTitle, $opt_monitor_d,
      );
 
 
@@ -82,6 +82,7 @@ GetOptions('information'        =>  \$opt_information,
            'play'               =>  \$opt_playSongFromList,
            'add=s{1,}'          =>  \@opt_addPlaylist,
            'monitor'            =>  \$opt_monitoring,
+           'md|monitord'        =>  \$opt_monitor_d, 
            'queue=i{1,}'        =>  \@opt_queue,
            'lyrics'             =>  \&lyrics,
            'ctrl'               =>  \$opt_ctrl,
@@ -174,6 +175,7 @@ print &currentlyPlaying, "\n"          if $opt_currentlyPlaying;
 &listAlbums                            if $opt_listAlbums;
 &playSongFromList                      if $opt_playSongFromList;
 &monitoring                            if $opt_monitoring;
+&monitoring                            if $opt_monitor_d;
 &randomize($opt_randomize)             if $opt_randomize;
 &addPlaylist(@opt_addPlaylist)         if @opt_addPlaylist;
 &queue(@opt_queue)                     if @opt_queue;
@@ -459,31 +461,36 @@ sub lyrics {
 
 sub monitoring {
   my $np = "";
+  use Proc::Daemon;
+  print "Daemonizing...\n" if $opt_monitor_d;
+  Proc::Daemon::Init if $opt_monitor_d;
   while(1) {
     my $current = $mpd->current // undef;
-    my $file;
-    if(!$current) {
-      $file = 'undef';
+    my $output;
+    if($opt_monitor_d) {
+      my $artist = $mpd->current->artist // 'undef';
+      my $album  = $mpd->current->album  // 'undef';
+      my $title  = $mpd->current->title  // 'undef';
+      my $genre  = $mpd->current->genre  // 'undef';
+      $output = sprintf("%s (%s) %s | %s", $artist, $album, $title, $genre);
     }
-    else {
-      $file = $mpd->current->file;
-    }
-    my @date = localtime(time);
-    my @colors = shuffle(@clr);
-
-    if(!$current) {
-      $current = 'undef';
-    }
+    
     if("$np" ne "$current") {
       $np = $current;
-      printf("%02s:%02s:%02s |%0s %.68s %0s\n",
-             $date[2], $date[1], $date[0], $colors[0], $file, $clr[9]);
-    }
-    sleep 2;
-  }
-  exit 0;
-} 
-
+      if($opt_monitor_d) {
+        system("$daemon_cmd \"$output\"");
+      }
+      else {
+        my @date = localtime(time);
+        my @rclr = shuffle(@clr);
+        my $file = $mpd->current->file;
+        printf("%02s:%02s:%02s | $rclr[0]%.68s$clr[9]\n",
+               $date[2], $date[1], $date[0], $file);
+           }
+         }
+         sleep 2;
+       }
+     }
 sub queue {
   my @to_play = @_;
   if(@to_play < 1) {
