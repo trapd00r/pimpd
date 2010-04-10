@@ -101,66 +101,72 @@ if($opt_color) {
 }
 
 if($mpd->status->playlistlength < 1) {
-  print "Your playlist looks empty. Let's add some music!\n";
-  sub listlen_help {
-    print << 'FOO';
-    OPTIONS:
-      rand <integer>        randomize a new playlist with <integer> tracks
-      add <string>          add <string> playlist(s)
-      sdb <pattern>         search the database for <pattern>. 
-      sar <pattern>         search for artists matching <pattern>
-      sal <pattern>         search for albums matching <pattern>
-      set <pattern>         search for titles matching <pattern>
+  # if the user did the right thing here, we'll let her
+  unless($opt_randomize      or
+         $opt_searchDatabase or
+         $opt_searchAlbum    or
+         $opt_searchArtist   or
+         $opt_searchTitle    or
+         @opt_addPlaylist) {
+
+    print "Your playlist looks empty. Let's add some music!\n";
+    su b listlen_help {
+      print << 'FOO';
+      OPTIONS:
+        rand <integer>        randomize a new playlist with <integer> tracks
+        add <string>          add <string> playlist(s)
+        sdb <pattern>         search the database for <pattern>. 
+        sar <pattern>         search for artists matching <pattern>
+        sal <pattern>         search for albums matching <pattern>
+        set <pattern>         search for titles matching <pattern>
 
 FOO
-  }
-  &listlen_help;
+    }
+    &listlen_help;
 
-  print 'pimpd> ';
-  while(<STDIN>) {
-    my $action = $_;
-  
-    if($action =~ /^sdb\s+(.+)/) {
-      my $search = $1;
-      &searchDatabase($search);
-      exit 0;
-    }
-    elsif($action =~  /^rand\s+(.+)/) {
-      my $no = $1;
-      &randomize($no);
-      exit 0;
-    }
-    elsif($action =~ /add\s+(.+)/) {
-      my $list = $1;
-      my @lists = split(/\s/, $list);
-      &addPlaylist(@lists);
-      exit 0;
-    }
-    elsif($action =~ /set\s+(.+)/) {
-      my $search = $1;
-      &searchTitle($search);
-      $mpd->play;
-      exit 0;
-    }
-    elsif($action =~ /sar\s+(.+)/) {
-      my $search = $1;
-      &searchArtist($search);
-      $mpd->play;
-      exit 0;
-    }
-    elsif($action =~ /sal\s+(.+)/) {
-      my $search = $1;
-      &searchAlbum($search);
-      $mpd->play;
-      exit 0;
-    }
-    else {
-      &listlen_help;
-      print 'pimpd> ';
+    print 'pimpd> ';
+    while(my $action = <STDIN>) {
+      if($action =~ /^sdb\s+(.+)/) {
+        my $search = $1;
+        &searchDatabase($search);
+        exit 0;
+      }
+      elsif($action =~  /^rand\s+(.+)/) {
+        my $no = $1;
+        &randomize($no);
+        exit 0;
+      }
+      elsif($action =~ /add\s+(.+)/) {
+        my $list = $1;
+        my @lists = split(/\s/, $list);
+        &addPlaylist(@lists);
+        exit 0;
+      }
+      elsif($action =~ /set\s+(.+)/) {
+        my $search = $1;
+        &searchTitle($search);
+        $mpd->play;
+        exit 0;
+      }
+      elsif($action =~ /sar\s+(.+)/) {
+        my $search = $1;
+        &searchArtist($search);
+        $mpd->play;
+        exit 0;
+      }
+      elsif($action =~ /sal\s+(.+)/) {
+        my $search = $1;
+        &searchAlbum($search);
+        $mpd->play;
+        exit 0;
+      }
+      else {
+        &listlen_help;
+        print 'pimpd> ';
+      }
     }
   }
 }
-
 print &currentlyPlaying, "\n"          if $opt_currentlyPlaying;
 &information                           if $opt_information;
 &showPlaylist                          if $opt_showPlaylist;
