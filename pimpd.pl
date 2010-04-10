@@ -110,7 +110,7 @@ if($mpd->status->playlistlength < 1) {
          @opt_addPlaylist) {
 
     print "Your playlist looks empty. Let's add some music!\n";
-    su b listlen_help {
+    sub listlen_help {
       print << 'FOO';
       OPTIONS:
         rand <integer>        randomize a new playlist with <integer> tracks
