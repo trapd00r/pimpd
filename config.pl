@@ -22,6 +22,9 @@ our $remote_host  = undef;
 our $remote_pass  = 'mpd_pass';
 our $remote_user  = 'ssh_user';
 
+## Command used for monitoring in daemonized mode
+our $daemon_cmd = "stumpish echo "; 
+
 ## Color support
 our $opt_color   = 0; # use colors, 1 to disable
 our $color256    = 0; # extended colors disabled, 1 to enable
