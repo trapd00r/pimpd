@@ -523,98 +523,46 @@ sub queue {
 
 sub ctrl {
   my $option = shift;
- # print 'pimpd>';
- print << 'CMD';
+  print << 'CMD';
 This is the pimpd shell for simple interacting with MPD.
 
  Available commands are:
 
- n|next    next track
- p|prev    previous track
- t|toggle  toggles pause/play
-re|repeat  toggles repeat on/off
-ra|random  toggles random on/off
-cr|crop    remove all tracks in playlist except for the current one
- s|shuffle shuffle the current playlist
-cl|clear   remove all items from playlist
+ n    next track
+ p    previous track
+ t    toggle pause/play
+ s    shuffle the playlist
+np    print currently playing song
+ra    toggle random on/off
+re    toggle repeat on/off
+cl    clear the playlist
+cr    remove all tracks in playlist except for the current one
 
   :q|exit exit
 
 CMD
-print '-' x 40, "\n";
-print 'pimpd> ';
-  while(<>) {
-    my $cmd = $_;
 
-    if($cmd =~ /:q|exit/) {
-      print "Quitting...\n";
-      exit 0;
-    }
-    elsif($cmd =~ /(^n$|^next$)/) {
-      $mpd->next;
-      print '>> ',$mpd->current->artist, ' - ', $mpd->current->album, ' - ',
-            $mpd->current->title, "\n", 'pimpd> ';
+  my $ctrlOptions = {
+    'n'  =>  sub {$mpd->next; print &currentlyPlaying, "\n"},
+    'p'  =>  sub {$mpd->prev; print &currentlyPlaying, "\n"},
+    't'  =>  sub {$mpd->pause; print $mpd->status->state, "\n"},
+    's'  =>  sub {$mpd->playlist->shuffle; print $mpd->status->playlist, "\n"},
+    'np' =>  sub {print &currentlyPlaying, "\n"},
+    'ra' =>  sub {$mpd->random; print $mpd->status->random, "\n"},
+    're' =>  sub {$mpd->repeat; print $mpd->status->repeat, "\n"},
+    'cl' =>  sub {$mpd->playlist->clear},
+    'cr' =>  sub {$mpd->playlist->crop},
+    ':q' =>  sub {exit 0},
+  };
 
-    }
-    elsif($cmd =~ /(^p$|^prev(.+)?$)/) {
-      $mpd->prev;
-      print '> ',$mpd->current->artist, ' - ', $mpd->current->album, ' - ',
-            $mpd->current->title, "\npimpd> ";
-    }
-    elsif($cmd =~ /(^t$|^toggle$)/) {
-      $mpd->pause;
-      my $state = $mpd->status->state;
-      if($state eq 'play') {
-        $state = 'playing';
-      }
-      if($state eq 'pause') {
-        $state = 'paused';
-      }
-      print "MPD is $state. \n", 'pimpd> ';
-    }
-
-    elsif($cmd =~ /(^re$|^repeat$)/) {
-      $mpd->repeat;
-      my $rep_status = $mpd->status->repeat;
-      if($rep_status == 0) {
-        $rep_status = 'disabled.';
-        }
-      else {
-        $rep_status = 'enabled.';
-      }
-      print "Repeat is $rep_status \n" , 'pimpd> ';
-    }
-
-    elsif($cmd =~ /(^ra$|^random$)/) {
-      $mpd->random;
-      my $rand_status = $mpd->status->random;
-      if($rand_status == 0) {
-        $rand_status = 'disabled.';
-      }
-      else {
-        $rand_status = 'enabled.';
-      }
-      print "Random is $rand_status \n", 'pimpd> ';
-    }
-    elsif($cmd =~  /(^cr$|^crop$)/) {
-      $mpd->playlist->crop;
-      print 'pimpd> ';
-    }
-    elsif($cmd =~  /(^cl$|^clear$)/) {
-      $mpd->playlist->clear;
-      print 'pimpd> ';
-    }
-    elsif($cmd =~ /(^s$|^shuffle$)/) {
-      $mpd->playlist->shuffle;
-      print 'pimpd> ';
-    }
-    else {
-      print "Option not recognized.\n";
-      print 'pimpd> ';
-    }
+  print '-' x 40, "\n";
+  while(1) {
+    print "pimpd> ";
+    my $choice = <STDIN>;
+    chomp($choice);
+    defined $ctrlOptions->{$choice} && $ctrlOptions->{$choice}->();
   }
 }
-
 sub searchPlaylist {
   my $search   = shift;
   my @playlist = $mpd->playlist->as_items;
