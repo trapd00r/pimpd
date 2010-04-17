@@ -461,9 +461,11 @@ sub lyrics {
 
 sub monitoring {
   my $np = "";
-  use Proc::Daemon;
-  print "Daemonizing...\n" if $opt_monitor_d;
-  Proc::Daemon::Init if $opt_monitor_d;
+  if($opt_monitor_d) {
+    use Proc::Daemon;
+    print "Daemonizing...\n";
+    Proc::Daemon::Init;
+  }
   while(1) {
     my $current = $mpd->current // undef;
     my $output;
