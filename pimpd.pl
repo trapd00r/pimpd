@@ -538,7 +538,7 @@ re    toggle repeat on/off
 cl    clear the playlist
 cr    remove all tracks in playlist except for the current one
 
-  :q|exit exit
+q     quit
 
 CMD
 
