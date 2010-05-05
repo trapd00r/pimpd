@@ -1,0 +1,74 @@
+#!/usr/bin/perl
+use Data::Dumper;
+$Data::Dumper::Indent   = 2;
+$Data::Dumper::Maxdepth = 0;
+
+$SELF    = 'pimpd';
+$VERSION = 1.5;
+
+use strict;
+use Audio::MPD;
+use LWP::Simple;
+use HTML::TokeParser::Simple;
+use Text::Autoformat;
+use Pod::Usage;
+use Getopt::Long;
+use List::Util qw(shuffle);
+use Pimpd::Func qw(playing play getlist add search status load);
+
+#eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";};
+#if($@) {
+#  require "/etc/pimpd.conf";
+#} else {
+#  require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";
+#}
+#
+my ($mpd,$options);
+#if(defined($remoteHost)) {
+#  $mpd = Audio::MPD->new(
+#    host     => $remoteHost,
+#    password => $remotePassword,
+#  );
+#} else {
+  $mpd = Audio::MPD->new;
+#}
+my $action = shift // 'status';
+my $arg    = shift;
+my $arg2   = shift;
+chomp($action,$arg,$arg2);
+
+$options = {
+  sal     => sub {$mpd->playlist->add($_->file) for (findalbum($arg))},
+  sar     => sub {$mpd->playlist->add($_->file) for (findartist($arg))},
+  set     => sub {$mpd->playlist->add($_->file) for (findsong($arg))},
+  np      => sub {print playing(), "\n";},
+  play    => sub {play($arg); print playing(), "\n";},
+  toggle  => sub {$mpd->pause;},
+  pause   => sub {$mpd->pause;},
+  stop    => sub {$mpd->stop;},
+  next    => sub {$mpd->next;},
+  prev    => sub {$mpd->prev;},
+  shuffle => sub {$mpd->playlist->shuffle;},
+  random  => sub {$mpd->random(); print $mpd->status->random,"\n"},
+  repeat  => sub {$mpd->repeat(); print $mpd->status->repeat, "\n"},
+  clear   => sub {$mpd->playlist->clear;},
+  crop    => sub {$mpd->playlist->crop;},
+  find    => sub {add($_->file) for search($arg,$arg2);}, 
+  search  => sub {print $_->file,"\n" for search($arg,$arg2);},
+  add     => sub {add(<STDIN>);$mpd->play},
+  status  => sub {print status();},
+  load    => sub {load($arg);},
+  help    => sub {print "$_\n" for sort(keys(%{$options})); exit 1},
+  show    => sub {
+    my $i=0;
+    foreach my $song((getlist())) {
+      printf("%03d %35.35s - %-47.47s\n",$i, $song->artist, $song->title);
+      ++$i;
+    }
+  #show    => sub {printf("%35.35s - %-47.47s\n",
+  #    $_->artist, $_->title) for (getlist());
+  },
+
+};
+
+defined $options->{$action} && $options->{$action}->();
