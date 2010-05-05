@@ -1,7 +1,8 @@
 package Pimpd::Func;
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(playing getlist play add search status load);
+@EXPORT_OK = qw(playing getlist play add search status load 
+                stats lsplaylists randomize);
 use Data::Dumper;
 use Audio::MPD;
 my $mpd = Audio::MPD->new;
@@ -20,8 +21,11 @@ sub search {
 }
 
 sub playing {
-  my $playing = sprintf("%.24s - %.24s (%.24s)",
-    $mpd->current->artist, $mpd->current->title, $mpd->current->album);
+  my $artist = $mpd->current->artist // 'n/a';
+  #my $album  = $mpd->current->album  // 'n/a';
+  my $title  = $mpd->current->album  // 'n/a';
+  my $playing = sprintf("%.38s - %.38s",
+    $artist, $title);
   return $playing;
 }
 
@@ -45,6 +49,27 @@ sub load {
   $mpd->playlist->load($list);
 }
 
+sub lsplaylists {
+  return $mpd->collection->all_playlists;
+}
+
+sub randomize {
+  use List::Util qw(shuffle);
+  my $i = shift // 100;
+  my @songs = $mpd->collection->all_pathes;
+  @songs = shuffle(@songs);
+  $mpd->playlist->clear;
+  $mpd->playlist->add(@songs[0..$i-1]);
+  $mpd->play;
+}
+
+sub stats {
+  my $stats = sprintf(
+    "Artists: %s\n Albums: %s\n  Songs: %s\n\nPlay Time: %s\nUptime: %s",
+    $mpd->stats->artists, $mpd->stats->albums, $mpd->stats->songs,
+    $mpd->stats->playtime, $mpd->stats->uptime, $mpd->stats->db_update);
+}
+
 sub status {
   my $np = playing();
   my $strstate;
@@ -56,7 +81,7 @@ sub status {
   };
   defined $state->{$mpd->status->state} && $state->{$mpd->status->state}->();
   my $songpos = sprintf("#%d/%d",
-    $mpd->status->song, $mpd->status->playlistlength);
+    $mpd->status->song+1, $mpd->status->playlistlength);
   my $songelap = sprintf("%s/%s (%s%)",
     $mpd->status->time->sofar, $mpd->status->time->total,
     $mpd->status->time->percent);
