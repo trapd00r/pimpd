@@ -28,8 +28,8 @@ our $daemon_cmd = "stumpish echo ";
 ## Color support
 our $opt_color   = 0; # use colors, 1 to disable
 our $color256    = 0; # extended colors disabled, 1 to enable
-## You can specify colorschemes this way
-#our $colorscheme = 'greyscale'; #
+## You can specify colorschemes this way. Uncomment for the default
+our $colorscheme = 'master'; #
 
 ## Default ANSI escape sequences most terms can handle
 our @clr;
@@ -104,5 +104,23 @@ if($colorscheme eq 'girlie') {
   $clr[13] = "\033[38;5;110m";
   $clr[14] = "\033[38;5;142m";
 }
+if($colorscheme eq 'master') {
+  $clr[0]  = "\033[38;5;167m";
+  $clr[1]  = "\033[38;5;030m";
+  $clr[2]  = "\033[38;5;142m";
+  $clr[3]  = "\033[38;5;172m";
+  $clr[4]  = "\033[38;5;202m";
+  $clr[6]  = "\033[38;5;179m";
+  $clr[7]  = "\033[38;5;197m";
+  $clr[8]  = "\033[38;5;082m";
+  $clr[9]  = "\033[0m";
+  $clr[10] = "\033[38;5;044m";
+  $clr[11] = "\033[38;5;071m";
+  $clr[12] = "\033[38;5;114m";
+  $clr[13] = "\033[38;5;215m";
+  $clr[14] = "\033[38;5;106m";
+}
 
 1;
+
+# vim: set ts=2 filetype=perl:
