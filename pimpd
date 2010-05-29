@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 # pimpd - Perl Interface for the Music Player Daemon
-# Copyright (C) 2010 trapd00r <trapd00r@trapd00r.se>
+# Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ our ($basedir, $playlist_dir, $fallback_playlist, $portable,
 my $mpd;
 if(defined($remote_host)) {
   $mpd = Audio::MPD->new(host     =>  $remote_host,
-                         password =>  $remote_pass,
+    #  password =>  $remote_pass,
                          );
 }
 else {
@@ -86,7 +86,7 @@ GetOptions('information'        =>  \$opt_information,
            'queue=i{1,}'        =>  \@opt_queue,
            'lyrics'             =>  \&lyrics,
            'ctrl'               =>  \$opt_ctrl,
-           'external=s{1,}'     =>  \@opt_listExternal,                          
+           'external=s{1,}'     =>  \@opt_listExternal,
            'spl|search-pl=s'    =>  \$opt_searchPlaylist,
            'sdb|search-db=s'    =>  \$opt_searchDatabase,
            'sal|search-album=s' =>  \$opt_searchAlbum,
