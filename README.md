@@ -19,7 +19,7 @@ mpc is missing. This includes, but is not limited to:
   * Support for 256 colors
   * Support for colorschemes
 
-![screenshot](http://github.com/trapd00r/pimpd/raw/master/pimpd-1.0-screenshot.png)
+![screenshot](http://github.com/trapd00r/pimpd/raw/master/pimpd-1.4-screenshot2.png)
 
 
 
