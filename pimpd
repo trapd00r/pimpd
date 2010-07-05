@@ -695,6 +695,10 @@ sub help {
     -set, --search-title  search for song title containing <string>
      -no, --nocolor       dont use colorized output
 
+     -ho, --host          remote host, if any
+     -po, --port          remote port, if any
+     -pa, --pass          remote pass, if any
+
       -h, --help          show this help
 
   PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
