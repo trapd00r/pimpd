@@ -49,18 +49,8 @@ else {
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @clr, $daemon_cmd);
+     $opt_color, @clr, $daemon_cmd, $remote_port);
 
-
-my $mpd;
-if(defined($remote_host)) {
-  $mpd = Audio::MPD->new(host     =>  $remote_host,
-    #  password =>  $remote_pass,
-                         );
-}
-else {
-  $mpd = Audio::MPD->new;
-}
 
 our (@opt_queue, $opt_ctrl, @opt_listExternal,
      $opt_searchPlaylist, $opt_searchDatabase, $opt_information, #FIXME
@@ -93,9 +83,24 @@ GetOptions('information'        =>  \$opt_information,
            'sar|search-artist=s'=>  \$opt_searchArtist,
            'set|search-title=s' =>  \$opt_searchTitle,
            'no-color|nocolor'   =>  \$opt_color,
+           'host:s'             =>  \$remote_host,
+           'port:s'             =>  \$remote_port,
+           'pass:s'             =>  \$remote_pass,
 
            'help'               =>  \&help,
            );
+
+my $mpd;
+if(defined($remote_host)) {
+  $mpd = Audio::MPD->new(
+    host      => $remote_host,
+    port      => $remote_port,
+    pass      => $remote_pass,
+  );
+}
+else {
+  $mpd = Audio::MPD->new;
+}
 
 if($opt_color) {
   @clr = ("\033[0m");
