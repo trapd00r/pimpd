@@ -657,10 +657,11 @@ sub pipeAdd {
 sub currentlyPlaying {
   my $artist  = $clr[3].$mpd->current->artist.$clr[9] // 'undef';
   my $song    = $clr[4].$mpd->current->title.$clr[9]  // 'undef';
+  my $album   = $clr[5].$mpd->current->album.$clr[9]  // 'undef';
   my $bitrate = $mpd->status->bitrate                 // 'undef';
   my $genre   = $clr[1].$mpd->current->genre.$clr[9]  // 'undef';
 
-  my $current = "$clr[1] >>$clr[9] $artist - $song ($bitrate kbps) [$genre]";
+  my $current = "$clr[1] >>$clr[9] $artist - $song from $album ($bitrate kbps) [$genre]";
 
   return $current;
 }
