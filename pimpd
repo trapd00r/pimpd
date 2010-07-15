@@ -626,7 +626,7 @@ sub searchArtist {
     push(@files, $artist->file);
   }
   &pipeAdd(@files);
-  print ">> ", $clr[1], scalar(@artists)-1, $clr[9], 
+  print ">> ", $clr[1], scalar(@artists), $clr[9], 
         " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
 }
 
