@@ -103,7 +103,7 @@ else {
 }
 
 if($opt_color) {
-  @clr = ("\033[0m");
+  @clr = (undef); # when piped to non-shell apps, \033[0m will look ugly
 }
 
 if($mpd->status->playlistlength < 1) {
@@ -626,7 +626,7 @@ sub searchArtist {
     push(@files, $artist->file);
   }
   &pipeAdd(@files);
-  print ">> ", $clr[1], scalar(@artists)-1, $clr[9], 
+  print ">> ", $clr[1], scalar(@artists), $clr[9], 
         " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
 }
 
@@ -642,7 +642,7 @@ sub searchTitle  {
     push(@files, $song->file);
   }
   &pipeAdd(@files);
-  print ">> ", $clr[1], scalar(@songs)-1, $clr[9],
+  print ">> ", $clr[1], scalar(@songs), $clr[9],
         " titles found matching $clr[3]$search $clr[9]\n";
 }
 
