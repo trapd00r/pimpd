@@ -660,13 +660,15 @@ sub currentlyPlaying {
     $mpd->status->bitrate, $cu->genre);
 
   my $current = undef;
-  if(!defined($artist)) {
+
+  if(!defined($artist) or(!defined($song))) {
     $current = sprintf("$clr[1] >>$clr[9] %s\033[1m%s\033[0m", "$basedir/", $cu->file);
   }
   else {
-    $current = sprintf("$clr[1] >>$clr[9] \033[1m%s\033[0m from \033[1m%s\033[0m ($bitrate kbps) [$genre]");
+    $current = sprintf("$clr[3] >>$clr[9] %s - \033[1m%s\033[0m ",
+      $artist, $song) .
+        sprintf("from \033[1m%s\033[0m ($bitrate kbps) [$genre]", $album);
   }
-
   return $current;
 }
 
