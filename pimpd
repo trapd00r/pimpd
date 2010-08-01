@@ -662,14 +662,28 @@ sub currentlyPlaying {
   my $current = undef;
 
   if(!defined($artist) or(!defined($song))) {
-    $current = sprintf("$clr[1] >>$clr[9] %s\033[1m%s\033[0m", "$basedir/", $cu->file);
+    if(-t *STDOUT) { #output to terminal?
+      $current = sprintf("$clr[1] >>$clr[9] %s\033[1m%s\033[0m",
+        "$basedir/", $cu->file);
+    }
+    else {
+      $current = sprintf(" >> %s %s",
+        "$basedir/", $cu->file);
+    }
   }
   else {
-    $current = sprintf("$clr[3] >>$clr[9] %s - \033[1m%s\033[0m ",
-      $artist, $song) .
-        sprintf("from \033[1m%s\033[0m ($bitrate kbps) [$genre]", $album);
+    if(-t *STDOUT) { # FIXME make this a to-be-called function
+      $current = sprintf("$clr[3] >>$clr[9] %s - \033[1m%s\033[0m ",
+        $artist, $song) .
+          sprintf("from \033[1m%s\033[0m ($bitrate kbps) [$genre]", $album);
+    }
+    else {
+      $current = sprintf(" >> %s - %s from %s (%s kbps) [%s]",
+        $artist, $song, $album, $bitrate, $genre
+      );
+    }
   }
-  return $current;
+  return($current);
 }
 
 sub help {
