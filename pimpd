@@ -1,38 +1,20 @@
 #!/usr/bin/perl
-use strict;
-# pimpd - Perl Interface for the Music Player Daemon
-# Copyright (C) 2010 Magnus Woldrich <trapd00r@trapd00r.se>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-###############################################################################
-# External modules that'll be used later on
-# LWP::Simple, HTML::TokeParser::Simple, Text::Autoformat
-
 our $APP     = 'pimpd';
 our $VERSION = '1.4.1';
+
+use strict;
 my $DEBUG = 0;
 
 use Audio::MPD;
 use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
+use Data::Dumper;
 
-if(!@ARGV) {
-  &help;
-}
 
-if($DEBUG eq 1) {
+help() if(!@ARGV);
+
+if($DEBUG) {
   require "config.pl";
 }
 else {
@@ -52,36 +34,37 @@ our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $opt_color, @clr, $daemon_cmd, $remote_port);
 
 
-our (@opt_queue, $opt_ctrl, @opt_listExternal,
-     $opt_searchPlaylist, $opt_searchDatabase, $opt_information, #FIXME
-     $opt_randomize, @opt_addPlaylist, $opt_showPlaylist,
-     $opt_favlist, $opt_playSongFromList, $opt_monitoring, $opt_listAlbums,
-     $opt_currentlyPlaying, $opt_searchAlbum, $opt_searchArtist,
-     $opt_searchTitle, $opt_monitor_d,
+our (@opt_queue, $opt_ctrl, @opt_list_external,
+     $opt_search_playlist, $opt_search_db, $opt_information, #FIXME
+     $opt_randomize, @opt_add_playlist, $opt_playlist,
+     $opt_favlist, $opt_play_from_list, $opt_monitoring, $opt_list_albums,
+     $opt_current, $opt_search_album, $opt_search_artist,
+     $opt_search_title, $opt_monitor_d,
      );
 
+my $e = "\e[38;5";
 
 # :{,} == zero or more
 GetOptions('information'        =>  \$opt_information,
-           'np'                 =>  \$opt_currentlyPlaying,
+           'np'                 =>  \$opt_current,
            'randomize:i'        =>  \$opt_randomize,
            'copy'               =>  \&cptoPort,
            'favorite'           =>  \$opt_favlist,
-           'listalbums'         =>  \$opt_listAlbums,
-           'show'               =>  \$opt_showPlaylist,
-           'play'               =>  \$opt_playSongFromList,
-           'add=s{1,}'          =>  \@opt_addPlaylist,
+           'listalbums'         =>  \$opt_list_albums,
+           'show'               =>  \$opt_playlist,
+           'play'               =>  \$opt_play_from_list,
+           'add=s{1,}'          =>  \@opt_add_playlist,
            'monitor'            =>  \$opt_monitoring,
            'md|monitord'        =>  \$opt_monitor_d, 
            'queue=i{1,}'        =>  \@opt_queue,
            'lyrics'             =>  \&lyrics,
            'ctrl'               =>  \$opt_ctrl,
-           'external=s{1,}'     =>  \@opt_listExternal,
-           'spl|search-pl=s'    =>  \$opt_searchPlaylist,
-           'sdb|search-db=s'    =>  \$opt_searchDatabase,
-           'sal|search-album=s' =>  \$opt_searchAlbum,
-           'sar|search-artist=s'=>  \$opt_searchArtist,
-           'set|search-title=s' =>  \$opt_searchTitle,
+           'external=s{1,}'     =>  \@opt_list_external,
+           'spl|search-pl=s'    =>  \$opt_search_playlist,
+           'sdb|search-db=s'    =>  \$opt_search_db,
+           'sal|search-album=s' =>  \$opt_search_album,
+           'sar|search-artist=s'=>  \$opt_search_artist,
+           'set|search-title=s' =>  \$opt_search_title,
            'no-color|nocolor'   =>  \$opt_color,
            'host:s'             =>  \$remote_host,
            'port:s'             =>  \$remote_port,
@@ -103,95 +86,95 @@ else {
 }
 
 if($opt_color) {
-  @clr = (undef); # when piped to non-shell apps, \033[0m will look ugly
+  @clr = (); # when piped to non-shell apps, \033[0m will look ugly
+}
+
+sub listlen_empty_msg {
+  printf("%s\n
+    OPTIONS:
+        rand n    randomize a new playlist with n tracks
+        add  s    add playlist s
+        sdb  p    search the database for pattern
+        sar  p    search for artists matching pattern
+        sal  p    search for albums matching pattern
+        set  p    search for titles matching pattern
+
+        ", shift,
+      );
 }
 
 if($mpd->status->playlistlength < 1) {
-  # if the user did the right thing here, we'll let her
-  unless($opt_randomize      or
-         $opt_searchDatabase or
-         $opt_searchAlbum    or
-         $opt_searchArtist   or
-         $opt_searchTitle    or
-         @opt_addPlaylist) {
+  listlen_empty_msg('Your playlist looks empty. Lets add some music')
+    unless($opt_randomize
+        or $opt_search_db
+        or $opt_search_album
+        or $opt_search_artist
+        or $opt_search_title
+        or @opt_add_playlist
+    );
 
-    print "Your playlist looks empty. Let's add some music!\n";
-    sub listlen_help {
-      print << 'FOO';
-      OPTIONS:
-        rand <integer>        randomize a new playlist with <integer> tracks
-        add <string>          add <string> playlist(s)
-        sdb <pattern>         search the database for <pattern>. 
-        sar <pattern>         search for artists matching <pattern>
-        sal <pattern>         search for albums matching <pattern>
-        set <pattern>         search for titles matching <pattern>
+  print "pimpd\e[38;5;148m>\e[0m";
 
-FOO
+  while(chomp(my $action = <STDIN>)) {
+    if($action =~ /^sdb\s+(.+)/) {
+      search_db($1);
     }
-    &listlen_help;
 
-    print 'pimpd> ';
-    while(my $action = <STDIN>) {
-      if($action =~ /^sdb\s+(.+)/) {
-        my $search = $1;
-        &searchDatabase($search);
-        exit 0;
-      }
-      elsif($action =~  /^rand\s+(.+)/) {
-        my $no = $1;
-        &randomize($no);
-        exit 0;
-      }
-      elsif($action =~ /add\s+(.+)/) {
-        my $list = $1;
-        my @lists = split(/\s/, $list);
-        &addPlaylist(@lists);
-        exit 0;
-      }
-      elsif($action =~ /set\s+(.+)/) {
-        my $search = $1;
-        &searchTitle($search);
-        $mpd->play;
-        exit 0;
-      }
-      elsif($action =~ /sar\s+(.+)/) {
-        my $search = $1;
-        &searchArtist($search);
-        $mpd->play;
-        exit 0;
-      }
-      elsif($action =~ /sal\s+(.+)/) {
-        my $search = $1;
-        &searchAlbum($search);
-        $mpd->play;
-        exit 0;
-      }
-      else {
-        &listlen_help;
-        print 'pimpd> ';
-      }
+    elsif($action =~ /^rand\s+(.+)/) {
+      randomize($1);
+    }
+
+    elsif($action =~ /add\s+(.+)/) {
+      my $list = $1;
+      add_playlist(split(/\s/, $list));
+    }
+
+    elsif($action =~ /set\s+(.+)/) {
+      search_title($1);
+      $mpd->play->();
+    }
+
+    elsif($action =~ /sar\s+(.+)/) {
+      search_artist($1);
+      $mpd->play;
+    }
+
+    elsif($action =~ /sal\s+(.+)/) {
+      search_album($1);
+      $mpd->play;
+    }
+
+    else {
+      listlen_empty_msg("$action: not valid!");
     }
   }
 }
-print &currentlyPlaying, "\n"          if $opt_currentlyPlaying;
-&information                           if $opt_information;
-&showPlaylist                          if $opt_showPlaylist;
-&favlist                               if $opt_favlist;
-&listAlbums                            if $opt_listAlbums;
-&playSongFromList                      if $opt_playSongFromList;
-&monitoring                            if $opt_monitoring;
-&monitoring                            if $opt_monitor_d;
-&randomize($opt_randomize)             if $opt_randomize;
-&addPlaylist(@opt_addPlaylist)         if @opt_addPlaylist;
-&queue(@opt_queue)                     if @opt_queue;
-&ctrl                                  if $opt_ctrl;
-&listExternal(@opt_listExternal)       if @opt_listExternal;
-&searchPlaylist($opt_searchPlaylist)   if $opt_searchPlaylist;
-&searchDatabase($opt_searchDatabase)   if $opt_searchDatabase;
-&searchAlbum($opt_searchAlbum)         if $opt_searchAlbum;
-&searchArtist($opt_searchArtist)       if $opt_searchArtist;
-&searchTitle($opt_searchTitle)         if $opt_searchTitle;
 
+print current(), "\n"                   if $opt_current;
+information()                           if $opt_information;
+playlist()                              if $opt_playlist;
+favlist()                               if $opt_favlist;
+list_albums()                           if $opt_list_albums;
+play_from_list()                        if $opt_play_from_list;
+monitoring()                            if $opt_monitoring;
+monitoring()                            if $opt_monitor_d;
+randomize($opt_randomize)               if $opt_randomize;
+add_playlist(@opt_add_playlist)         if @opt_add_playlist;
+queue(@opt_queue)                       if @opt_queue;
+ctrl()                                  if $opt_ctrl;
+list_external(@opt_list_external)       if @opt_list_external;
+search_playlist($opt_search_playlist)   if $opt_search_playlist;
+
+search_db($opt_search_db)               if $opt_search_db;
+search_album($opt_search_album)         if $opt_search_album;
+search_artist($opt_search_artist)       if $opt_search_artist;
+search_title($opt_search_title)         if $opt_search_title;
+
+sub onoff {
+  my $what = shift;
+  $what = ($what) ? 'Yes' : 'No';
+  return($what);
+}
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
@@ -219,47 +202,79 @@ sub information {
                  'artists'    =>  $mpd->stats->artists,
                  );
 
-  if($current{'bitrate'} < 192) {
-    $current{'bitrate'} = $clr[0].$current{'bitrate'}.$clr[9];
-  }
-  foreach my $tag(keys(%current)) {
-    if(!$current{$tag}) {
-      $current{$tag} = $clr[0].'undef'.$clr[9];
-    }
-  }
-  if($status{state} eq 'play') {
-    $status{state} = 'playing';
-  }
-  if($status{state} eq 'stop') {
-    $status{state} = 'stopped';
-  }
-  if($status{state} eq 'pause') {
-    $status{state} = 'paused';
-  }
-  printf("$clr[4]S%10s$clr[9] %.66s \n", 'Artist:', $current{artist});
-  printf("$clr[4]O%10s$clr[9] %.66s \n", 'Album:' , $current{album});
-  printf("$clr[4]N%10s$clr[9] %.66s \n", 'Song:'  , $current{title});
-  printf("$clr[4]G%10s$clr[9] %.66s \n", 'Genre:' , $current{genre});
-  printf("$clr[4] %10s$clr[9] %.66s \n", 'File:'  , $current{file});
-  printf("$clr[4]I%10s$clr[9] %.66s \n", 'Year:'  , $current{date});    
-  printf("$clr[4]N%10s$clr[9] %.66s \n", 'Time:'  , $current{time});
-  printf("$clr[4]F%10s$clr[9] %.66s \n", 'Rate:'  , $current{bitrate});
-  printf("$clr[4]O%10s$clr[9] %.66s \n", 'Audio:' , $current{audio});
-  print '-' x 25, "\n";
-  printf("$clr[3]S%10s$clr[9] %.66s \n", 'Repeat:', $status{repeat});
-  printf("$clr[3]T%10s$clr[9] %.66s \n", 'Shuffle:',$status{shuffle}); 
-  printf("$clr[3]A%10s$clr[9] %.66s \n", 'Xfade:', $status{xfade});
-  printf("$clr[3]T%10s$clr[9] %.66s \n", 'Volume:', $status{volume});
-  printf("$clr[3]U%10s$clr[9] %.66s \n", 'State:', $status{state});
-  printf("$clr[3]S%10s$clr[9] %.66s \n", 'List V:', $status{list});
-  print '-' x 25, "\n";
-  printf("$clr[2]S%10s$clr[9] %.66s \n", 'Song:', $stats{song});
-  printf("$clr[2]T%10s$clr[9] %.66s \n", 'List:', $stats{length} . ' songs');
-  printf("$clr[2]A%10s$clr[9] %.66s \n", 'Songs:', $stats{songs});
-  printf("$clr[2]T%10s$clr[9] %.66s \n", 'Albums:', $stats{albums});
-  printf("$clr[2]S%10s$clr[9] %.66s \n", 'Artists:', $stats{artists});
+  $current{'bitrate'} = ($current{'bitrate'} < 192)
+    ? ("$e;160m$current{'bitrate'}\e[0m")
+    : ("$e;70m$current{'bitrate'}\e[0m")
+    ;
 
-exit 0;
+  for(keys(%current)) {
+    $current{$_} = "$e;240mNot Available$e;0m" if(!defined($current{$_}));
+  }
+
+  $status{state} = 'Playing' if($status{state} eq 'play');
+  $status{state} = 'Paused'  if($status{state} eq 'pause');
+  $status{state} = 'Stopped' if($status{state} eq 'stop');
+
+  (undef,undef,undef,undef,undef, my $crnt_year) = localtime(time);
+  $crnt_year += 1900;
+
+  $current{date} = "$e;38m\e[1m$current{date}\e[0m" if($current{date} eq $crnt_year);
+
+  $status{repeat}  = onoff($status{repeat});
+  $status{shuffle} = onoff($status{repeat});
+
+  if($status{volume} < 0) {
+    $status{volume} = 'N/A (Software Mixer)';
+  }
+
+  printf("$e;251m\e[1mS\e[0m%10s$e;202m\e[1m %.66s\e[0m \n",
+    'Artist:', $current{artist});
+
+  printf("$e;250mO\e[0m%10s $e;162m%.66s\e[0m \n",
+    'Album:' , $current{album});
+
+  printf("$e;249mN\e[0m%10s $e;220m%.66s \n",
+    'Song:'  , $current{title});
+
+  printf("$e;248mG\e[0m%10s %.66s \n",
+    'Genre:' , $current{genre});
+
+  printf(" %10s$clr[9] \e[1m%.66s\e[0m \n",
+    'File:'  , $current{file});
+
+  printf("$e;247m\e[1mI\e[0m%10s %.66s \n",
+    'Year:'  , $current{date});
+
+  printf("$e;246mN\e[0m%10s %.66s \n",
+    'Time:'  , $current{time});
+
+  printf("$e;245mF\e[0m%10s %.66s \n",
+    'Rate:'  , $current{bitrate});
+
+  printf("$e;244mO\e[0m%10s %.66s \n",
+    'Audio:' , $current{audio});
+
+  print "$e;240m";
+  print '-' x 25, "\e[0m\n";
+
+  printf("$e;243m\e[1mS\e[0m%10s %.66s \n",
+    'Repeat:', $status{repeat});
+
+  printf("$e;242mT\e[0m%10s %.66s \n",
+    'Shuffle:',$status{shuffle});
+
+  printf("$e;241mA\e[0m%10s %.66s \n", 'Xfade:', $status{xfade});
+  printf("$e;240mT\e[0m%10s %.66s \n", 'Volume:', $status{volume});
+  printf("$e;239mU\e[0m%10s %.66s \n", 'State:', $status{state});
+  printf("$e;238mS\e[0m%10s %.66s \n", 'List V:', $status{list});
+  print '-' x 25, "\n";
+  printf("$e;243m\e[1mS\e[0m%10s %.66s \n", 'Song:', $stats{song});
+  printf("$e;236mT\e[0m%10s %.66s \n", 'List:', $stats{length} . ' songs');
+  printf("$e;235mA\e[0m%10s %.66s \n", 'Songs:', $stats{songs});
+  printf("$e;234mT\e[0m%10s %.66s \n", 'Albums:', $stats{albums});
+  printf("$e;234mS\e[0m%10s %.66s \n", 'Artists:', $stats{artists});
+
+  exit(0);
 }
 
 sub randomize {
@@ -272,19 +287,19 @@ sub randomize {
   $mpd->repeat(1);
   $mpd->play;
   my $message = "Added $count random songs:\n\n";
-  &showPlaylist($message);
+  playlist($message);
   exit 0;
-} 
- 
-sub showPlaylist {
+}
+
+sub playlist {
   my $header = shift;
   if($header eq 'show') {
     $header = "Playlist:\n";
   }
 
   my @playlist = $mpd->playlist->as_items;
-  my $i        = -1;  
-  
+  my $i        = -1;
+
   print $header;
   printf("%29s %6s\n", 'ARTIST', 'SONG');
   foreach my $song(@playlist) {
@@ -296,26 +311,28 @@ sub showPlaylist {
     $album  =~ s/(\w+)/\u\L$1/g;
     $artist =~ s/(\w+)/\u\L$1/g;
     ++$i;
-    
+
 # 80 columns
     printf"%03i $clr[4]%25.25s $clr[9]| $clr[6]%-47.47s $clr[9] \n",
           $i,$artist, $title;
   }
-  print "\n", &currentlyPlaying, "\n";
+  print "\n", &current, "\n";
   exit 0;
 }
 
-sub addPlaylist {
+sub add_playlist {
   if(@_) {
     my @playlists = @_;
     $mpd->playlist->clear;
-    foreach my $playlist(@playlists) {
-      $mpd->playlist->load($playlist);
+
+    for(@playlists) {
+      $mpd->playlist->load($_);
     }
+
     print ">> Adding...\n";
     print "> ", "$_\n" for(@playlists);
     $mpd->play;
-    exit 0;
+    exit(0);
   }
   else {
     my @playlists = $mpd->collection->all_playlists;
@@ -325,9 +342,9 @@ sub addPlaylist {
     }
   }
   exit 0;
-}  
+}
 
-sub listExternal {
+sub list_external {
   my @playlists = @_;
 
   foreach my $playlist(@playlists) {
@@ -409,7 +426,7 @@ sub favlist {
   exit 0;
 }
 
-sub listAlbums {
+sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
   my @albums = sort($mpd->collection->albums_by_artist($artist));
   print "$clr[1]$artist$clr[9] is featured on:\n\n";
@@ -419,10 +436,10 @@ sub listAlbums {
   exit 0;
 }
 
-sub playSongFromList {
+sub play_from_list {
   my $choice = $ARGV[0];
   $mpd->play($choice);
-  print &currentlyPlaying;
+  print &current;
 
   exit 0;
 }
@@ -515,7 +532,7 @@ sub queue {
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    print &currentlyPlaying, "\n";
+    print &current, "\n";
     printf("$clr[13]>>> %s - %s - %s $clr[9]\n",
                                  $tracksinlist[$nextpos]->artist,
                                  $tracksinlist[$nextpos]->album,
@@ -545,16 +562,16 @@ re    toggle repeat on/off
 cl    clear the playlist
 cr    remove all tracks in playlist except for the current one
 
-q     quit
+:q     quit
 
 CMD
 
-  my $ctrlOptions = {
-    'n'  =>  sub {$mpd->next; print &currentlyPlaying, "\n"},
-    'p'  =>  sub {$mpd->prev; print &currentlyPlaying, "\n"},
+  my $opts = {
+    'n'  =>  sub {$mpd->next; print &current, "\n"},
+    'p'  =>  sub {$mpd->prev; print &current, "\n"},
     't'  =>  sub {$mpd->pause; print $mpd->status->state, "\n"},
     's'  =>  sub {$mpd->playlist->shuffle; print $mpd->status->playlist, "\n"},
-    'np' =>  sub {print &currentlyPlaying, "\n"},
+    'np' =>  sub {print &current, "\n"},
     'ra' =>  sub {$mpd->random; print $mpd->status->random, "\n"},
     're' =>  sub {$mpd->repeat; print $mpd->status->repeat, "\n"},
     'cl' =>  sub {$mpd->playlist->clear},
@@ -564,13 +581,12 @@ CMD
 
   print '-' x 40, "\n";
   while(1) {
-    print "pimpd> ";
-    my $choice = <STDIN>;
-    chomp($choice);
-    defined $ctrlOptions->{$choice} && $ctrlOptions->{$choice}->();
+    print "pimpd\e[1m>\e[0m ";
+    chomp(my $choice = <STDIN>);
+    defined($opts->{$choice}) && $opts->{$choice}->();
   }
 }
-sub searchPlaylist {
+sub search_playlist {
   my $search   = shift;
   my @playlist = $mpd->playlist->as_items;
   my @found;
@@ -584,7 +600,7 @@ sub searchPlaylist {
   &queue(@found);
 }
 
-sub searchDatabase {
+sub search_db {
   my $search = shift; 
   my @collection = $mpd->collection->all_pathes;
 
@@ -598,7 +614,7 @@ sub searchDatabase {
   exit 0;
 }
 
-sub searchAlbum {
+sub search_album {
   my $search = shift;
   my @tracks = $mpd->collection->songs_from_album_partial($search); 
   if(!@tracks) {
@@ -609,12 +625,12 @@ sub searchAlbum {
   foreach my $track(@tracks) {
     push(@files, $track->file);
   }
-  &pipeAdd(@files);
+  &pipe_add(@files);
   print ">> ", $clr[1], scalar(@files), $clr[9],
         " albums found matching $clr[3]$search $clr[9]\n";
 }
 
-sub searchArtist {
+sub search_artist {
   my $search = shift;
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
@@ -625,12 +641,12 @@ sub searchArtist {
   foreach my $artist(@artists) {
     push(@files, $artist->file);
   }
-  &pipeAdd(@files);
+  &pipe_add(@files);
   print ">> ", $clr[1], scalar(@artists), $clr[9], 
         " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
 }
 
-sub searchTitle  {
+sub search_title  {
   my $search = shift;
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
@@ -641,12 +657,12 @@ sub searchTitle  {
   foreach my $song(@songs) {
     push(@files, $song->file);
   }
-  &pipeAdd(@files);
+  &pipe_add(@files);
   print ">> ", $clr[1], scalar(@songs), $clr[9],
         " titles found matching $clr[3]$search $clr[9]\n";
 }
 
-sub pipeAdd {
+sub pipe_add {
   my @files = (@_);
   foreach my $file(@files) {
     print $file, "\n";
@@ -654,7 +670,7 @@ sub pipeAdd {
   }
 } 
   
-sub currentlyPlaying {
+sub current {
   my $cu = $mpd->current;
   my($artist,$song,$album,$bitrate,$genre) = ($cu->artist,$cu->title,$cu->album,
     $mpd->status->bitrate, $cu->genre);
