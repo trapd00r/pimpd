@@ -36,7 +36,7 @@ else {
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
      $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port,
-     $ssh_host);
+     $ssh_host, $ssh_user);
 
 
 our (@opt_queue, $opt_ctrl, @opt_list_external,
@@ -422,18 +422,34 @@ sub cp {
 }
 
 sub favlist {
-  my $playlist = $ARGV[0] // lc($mpd->current->genre) // $fallback_playlist;
+  my $playlist = $ARGV[0] // lc($mpd->current->genre);
+  if(!defined($playlist) or $playlist eq '') {
+    $playlist = $fallback_playlist;
+  }
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
-  open PLAYLIST, ">>$fullpath\.m3u" or die 
-                                    "Could not open playlist: $!\n";
-  print PLAYLIST $filepath, "\n";
-  close PLAYLIST;
+
+  if(defined($remote_host)) {
+    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+      "printf \"%s\n\" $filepath >> $fullpath.m3u") == 0 or croak($!);
+
+    printf("$c[1]%s\e[0m\e[1m >> $ssh_host:$c[3]%s\e[0m\n",
+      $filepath, "$fullpath.m3u");
+    exit(0);
+  }
+  open(my $fh, '>>', "$fullpath.m3u")
+    or croak("Could not open $fullpath.m3u: $!");
+  print $fh "$filepath\n";
+  close($fh);
+
   my $history_path = "$playlist_dir/$history_playlist";
-  open HISTORY, ">>$history_path\.m3u" or die 
-                                       "Could not open history: $!\n";
-  print HISTORY $filepath, "\n";
-  close HISTORY;
+
+  open(my $fh, '>>', "$history_path.m3u")
+    or croak("Could not open $history_path.m3u: $!");
+  print $fh "$filepath\n";
+  close($fh);
+
   print $c[1].$filepath,$c[9].' >> ',$c[3]."$fullpath\.m3u",$c[0], "\n";
 
   exit 0;
