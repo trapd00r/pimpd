@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP     = 'pimpd';
-our $VERSION = '1.4.1';
+our $VERSION = '1.4.5';
 
 use strict;
 my $DEBUG = 0;
@@ -15,7 +15,7 @@ use Data::Dumper;
 help() if(!@ARGV);
 
 if($DEBUG) {
-  require "config.pl";
+  require "./pimpd.conf";
 }
 else {
   eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";};
@@ -31,7 +31,7 @@ else {
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @clr, $daemon_cmd, $remote_port);
+     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile);
 
 
 our (@opt_queue, $opt_ctrl, @opt_list_external,
@@ -45,33 +45,36 @@ our (@opt_queue, $opt_ctrl, @opt_list_external,
 my $e = "\e[38;5";
 
 # :{,} == zero or more
-GetOptions('information'        =>  \$opt_information,
-           'np'                 =>  \$opt_current,
-           'randomize:i'        =>  \$opt_randomize,
-           'copy'               =>  \&cptoPort,
-           'favorite'           =>  \$opt_favlist,
-           'listalbums'         =>  \$opt_list_albums,
-           'show'               =>  \$opt_playlist,
-           'play'               =>  \$opt_play_from_list,
-           'add=s{1,}'          =>  \@opt_add_playlist,
-           'monitor'            =>  \$opt_monitoring,
-           'md|monitord'        =>  \$opt_monitor_d, 
-           'queue=i{1,}'        =>  \@opt_queue,
-           'lyrics'             =>  \&lyrics,
-           'ctrl'               =>  \$opt_ctrl,
-           'external=s{1,}'     =>  \@opt_list_external,
-           'spl|search-pl=s'    =>  \$opt_search_playlist,
-           'sdb|search-db=s'    =>  \$opt_search_db,
-           'sal|search-album=s' =>  \$opt_search_album,
-           'sar|search-artist=s'=>  \$opt_search_artist,
-           'set|search-title=s' =>  \$opt_search_title,
-           'no-color|nocolor'   =>  \$opt_color,
-           'host:s'             =>  \$remote_host,
-           'port:s'             =>  \$remote_port,
-           'pass:s'             =>  \$remote_pass,
+GetOptions(
+  'information'        => \$opt_information,
+  'np'                 => \$opt_current,
+  'randomize:i'        => \$opt_randomize,
+  'copy'               => \&cptoPort,
+  'favorite'           => \$opt_favlist,
+  'listalbums'         => \$opt_list_albums,
+  'show'               => \$opt_playlist,
+  'play'               => \$opt_play_from_list,
+  'add=s{1,}'          => \@opt_add_playlist,
+  'monitor'            => \$opt_monitoring,
+  'md|monitord'        => \$opt_monitor_d,
+  'queue=i{1,}'        => \@opt_queue,
+  'lyrics'             => \&lyrics,
+  'ctrl'               => \$opt_ctrl,
+  'external=s{1,}'     => \@opt_list_external,
+  'spl|search-pl=s'    => \$opt_search_playlist,
+  'sdb|search-db=s'    => \$opt_search_db,
+  'sal|search-album=s' => \$opt_search_album,
+  'sar|search-artist=s'=> \$opt_search_artist,
+  'set|search-title=s' => \$opt_search_title,
+  'no-color|nocolor'   => \$opt_color,
+  'host:s'             => \$remote_host,
+  'port:s'             => \$remote_port,
+  'pass:s'             => \$remote_pass,
 
-           'help'               =>  \&help,
-           );
+  'kill'               => \&killkid,
+  'debug'              => \$DEBUG,
+  'help'               => \&help,
+);
 
 my $mpd;
 if(defined($remote_host)) {
@@ -86,8 +89,16 @@ else {
 }
 
 if($opt_color) {
-  @clr = (); # when piped to non-shell apps, \033[0m will look ugly
+  @c = (); # when piped to non-shell apps, \033[0m will look ugly
 }
+
+do {
+  my $i = 0;
+  for(@c) {
+    printf("$c[$i]\$c[$i]\e[0m\n");
+    $i++;
+  }
+} if($DEBUG);
 
 sub listlen_empty_msg {
   printf("%s\n
@@ -157,7 +168,15 @@ favlist()                               if $opt_favlist;
 list_albums()                           if $opt_list_albums;
 play_from_list()                        if $opt_play_from_list;
 monitoring()                            if $opt_monitoring;
-monitoring()                            if $opt_monitor_d;
+
+if($opt_monitor_d) {
+  if(-e $pidfile) {
+    print STDERR "pimpd is already running\n" and exit(-1);
+  }
+  else {
+    monitoring();
+  }
+}
 randomize($opt_randomize)               if $opt_randomize;
 add_playlist(@opt_add_playlist)         if @opt_add_playlist;
 queue(@opt_queue)                       if @opt_queue;
@@ -227,19 +246,19 @@ sub information {
     $status{volume} = 'N/A (Software Mixer)';
   }
 
-  printf("$e;251m\e[1mS\e[0m%10s$e;202m\e[1m %.66s\e[0m \n",
+  printf("$e;251m\e[1mS\e[0m%10s$c[0]\e[1m %.66s\e[0m \n",
     'Artist:', $current{artist});
 
-  printf("$e;250mO\e[0m%10s $e;162m%.66s\e[0m \n",
+  printf("$e;250mO\e[0m%10s$c[1] %.66s\e[0m \n",
     'Album:' , $current{album});
 
-  printf("$e;249mN\e[0m%10s $e;220m%.66s \n",
+  printf("$e;249mN\e[0m%10s$c[8]\e[1m %.66s \n",
     'Song:'  , $current{title});
 
   printf("$e;248mG\e[0m%10s %.66s \n",
     'Genre:' , $current{genre});
 
-  printf(" %10s$clr[9] \e[1m%.66s\e[0m \n",
+  printf(" %10s$c[9] \e[1m%.66s\e[0m \n",
     'File:'  , $current{file});
 
   printf("$e;247m\e[1mI\e[0m%10s %.66s \n",
@@ -249,12 +268,12 @@ sub information {
     'Time:'  , $current{time});
 
   printf("$e;245mF\e[0m%10s %.66s \n",
-    'Rate:'  , $current{bitrate});
+    'Bitrate:'  , $current{bitrate});
 
   printf("$e;244mO\e[0m%10s %.66s \n",
     'Audio:' , $current{audio});
 
-  print "$e;240m";
+  print "$c[13]\e[1m";
   print '-' x 25, "\e[0m\n";
 
   printf("$e;243m\e[1mS\e[0m%10s %.66s \n",
@@ -267,7 +286,10 @@ sub information {
   printf("$e;240mT\e[0m%10s %.66s \n", 'Volume:', $status{volume});
   printf("$e;239mU\e[0m%10s %.66s \n", 'State:', $status{state});
   printf("$e;238mS\e[0m%10s %.66s \n", 'List V:', $status{list});
-  print '-' x 25, "\n";
+
+  print "$c[13]\e[1m";
+  print '-' x 25, "\e[1m\n";
+
   printf("$e;243m\e[1mS\e[0m%10s %.66s \n", 'Song:', $stats{song});
   printf("$e;236mT\e[0m%10s %.66s \n", 'List:', $stats{length} . ' songs');
   printf("$e;235mA\e[0m%10s %.66s \n", 'Songs:', $stats{songs});
@@ -279,8 +301,8 @@ sub information {
 
 sub randomize {
   my $count = shift // 100;
-  my @songs = $mpd->collection->all_pathes;
-  @songs    = shuffle(@songs);
+  my @songs = shuffle($mpd->collection->all_pathes);
+  #@songs    = shuffle(@songs);
   $mpd->playlist->clear;
   $mpd->playlist->add(@songs[0 .. $count-1]);
   $mpd->random(1);
@@ -293,30 +315,33 @@ sub randomize {
 
 sub playlist {
   my $header = shift;
-  if($header eq 'show') {
-    $header = "Playlist:\n";
-  }
+  $header = "Playlist:\n" if($header eq 'show');
 
   my @playlist = $mpd->playlist->as_items;
-  my $i        = -1;
+  my $i        = 0;
 
   print $header;
   printf("%29s %6s\n", 'ARTIST', 'SONG');
-  foreach my $song(@playlist) {
+  for my $song(@playlist) {
     my $title  = $song->title  // 'undef';
     my $album  = $song->album  // 'undef';
     my $artist = $song->artist // 'undef';
+
 # titlecase
     $title  =~ s/(\w+)/\u\L$1/g;
     $album  =~ s/(\w+)/\u\L$1/g;
     $artist =~ s/(\w+)/\u\L$1/g;
     ++$i;
 
-# 80 columns
-    printf"%03i $clr[4]%25.25s $clr[9]| $clr[6]%-47.47s $clr[9] \n",
-          $i,$artist, $title;
+    my $bold = "\e[0m$c[9]";
+    if($i % 2 == 0) {
+      $bold = "\e[1m$c[13]";
+    }
+    printf("$bold% 3d\e[0m $bold$c[8]%25.25s$c[8]▕$bold$c[14]|$c[8]▏$bold$c[6]%-47.47s\e[0m\n",
+      $i, $artist, $title
+    );
   }
-  print "\n", &current, "\n";
+  print "\n" . current('show'), "\n";
   exit 0;
 }
 
@@ -352,7 +377,7 @@ sub list_external {
     open(PLAYLIST, $fullpath) || die "Unable to open $fullpath: $!\n";
     while(<PLAYLIST>) {
       my $list = $_;
-      print "$clr[4]$playlist$clr[9]: $list";
+      print "$c[4]$playlist$c[9]: $list";
     }
     close(PLAYLIST);
   }
@@ -396,7 +421,6 @@ sub scp_binary {
 }
 
 sub cptoPort {
-  use File::Copy;
   my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
@@ -421,7 +445,7 @@ sub favlist {
                                        "Could not open history: $!\n";
   print HISTORY $filepath, "\n";
   close HISTORY;
-  print $clr[1].$filepath,$clr[9].' >> ',$clr[3]."$fullpath\.m3u",$clr[0], "\n";
+  print $c[1].$filepath,$c[9].' >> ',$c[3]."$fullpath\.m3u",$c[0], "\n";
 
   exit 0;
 }
@@ -429,7 +453,7 @@ sub favlist {
 sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
   my @albums = sort($mpd->collection->albums_by_artist($artist));
-  print "$clr[1]$artist$clr[9] is featured on:\n\n";
+  print "$c[1]$artist$c[9] is featured on:\n\n";
   foreach my $album(@albums) {
     print $album, "\n";
   }
@@ -444,50 +468,51 @@ sub play_from_list {
   exit 0;
 }
 
-sub lyrics {
-  use LWP::Simple;
-  use HTML::TokeParser::Simple;
-  use Text::Autoformat qw(autoformat);
-  my $artist = $mpd->current->artist;
-  my $song   = $mpd->current->title;
-  my $url = "http://lyricsplugin.com/winamp03/plugin/?artist=".
-            "$artist&title=$song";
-  my $lyrics = get($url);
-  my $p      = HTML::TokeParser::Simple->new(string=>$lyrics);
+sub daemonize {
+  use POSIX 'setsid';
+  my $PID = fork();
+  exit(0) if($PID); #parent
+  exit(1) if(!defined($PID)); # out of resources
 
-  my @lyrics;
-  while(my $token = $p->get_token) {
-    next unless($token->is_text);
-    push(@lyrics, $token->as_is);
-  }
-# 26 elements if no text
-  if(scalar(@lyrics)<27) {
-    print "Sorry, no lyrics found.\n";
-    exit 0;
-  }
-  
-  # autoformat doesnt seem to handle arrays :/
-  my @foobar = (@lyrics[12..@lyrics-13]);
-  my $foo = join("", @foobar);
+  setsid();
+  $PID = fork();
+  exit(1) if(!defined($PID));
 
-  printf("%2s by %s:\n", $song, $artist);
-  print autoformat $foo, {left     => 0,
-                          right    => 80,
-                          all      => 1,
-                          justify  => 'centre',
-                          fill     => 0,
-                          tabspace => 2,
-                          case     => 'sentence'};
-   exit 0;
-} 
+  if($PID) { # parent
+    waitpid($PID, 0);
+    unlink($pidfile); # remove the lock when child have died
+    exit(0);
+  }
+  elsif($PID == 0) { # child
+    open(my $fh, '>', $pidfile) or die("Cant open $pidfile: $!");
+    print $fh $$;
+    close($fh);
+    open(STDOUT, '>', '/dev/null');
+    open(STDERR, '>', '/dev/null');
+    open(STDIN,  '<', '/dev/null');
+  }
+}
+
+sub killkid {
+  open(my $fh, '<', $pidfile) or print "pimpd is not running\n" and exit(1);
+  my $target = <$fh>;
+  close($fh);
+
+  if(kill(9, $target)) {
+    print "pimpd with PID $target terminated\n";
+  }
+  else {
+    print "Could not kill $target: $!";
+  }
+  exit(0);
+}
+
+
 
 sub monitoring {
   my $np = "";
-  if($opt_monitor_d) {
-    use Proc::Daemon;
-    print "Daemonizing...\n";
-    Proc::Daemon::Init;
-  }
+  daemonize if($opt_monitor_d);
+
   while(1) {
     my $current = $mpd->current // undef;
     my $output;
@@ -498,17 +523,18 @@ sub monitoring {
       my $genre  = $mpd->current->genre  // 'undef';
       $output = sprintf("%s (%s) %s | %s", $artist, $album, $title, $genre);
     }
-    
+
     if("$np" ne "$current") {
       $np = $current;
+
       if($opt_monitor_d) {
-        system("$daemon_cmd \"$output\"");
+        system("$daemon_cmd", "$output");
       }
       else {
         my @date = localtime(time);
-        my @rclr = shuffle(@clr);
+        my @rc = shuffle(@c);
         my $file = $mpd->current->file;
-        printf("%02s:%02s:%02s | $rclr[0]%.68s$clr[9]\n",
+        printf("%02s:%02s:%02s | $rc[0]%.68s$c[9]\n",
                $date[2], $date[1], $date[0], $file);
            }
          }
@@ -533,7 +559,7 @@ sub queue {
     
     my $nextpos = $to_play[$argc];
     print &current, "\n";
-    printf("$clr[13]>>> %s - %s - %s $clr[9]\n",
+    printf("$c[13]>>> %s - %s - %s $c[9]\n",
                                  $tracksinlist[$nextpos]->artist,
                                  $tracksinlist[$nextpos]->album,
                                  $tracksinlist[$nextpos]->title)
@@ -618,7 +644,7 @@ sub search_album {
   my $search = shift;
   my @tracks = $mpd->collection->songs_from_album_partial($search); 
   if(!@tracks) {
-    print ">> $clr[2]$search$clr[9]: no tracks found\n";
+    print ">> $c[2]$search$c[9]: no tracks found\n";
     exit 1;
   }
   my @files;
@@ -626,15 +652,15 @@ sub search_album {
     push(@files, $track->file);
   }
   &pipe_add(@files);
-  print ">> ", $clr[1], scalar(@files), $clr[9],
-        " albums found matching $clr[3]$search $clr[9]\n";
+  print ">> ", $c[1], scalar(@files), $c[9],
+        " albums found matching $c[3]$search $c[9]\n";
 }
 
 sub search_artist {
   my $search = shift;
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
-    print ">> $clr[2]$search$clr[9]: nothing found\n";
+    print ">> $c[2]$search$c[9]: nothing found\n";
     exit 1;
   }
   my @files;
@@ -642,15 +668,15 @@ sub search_artist {
     push(@files, $artist->file);
   }
   &pipe_add(@files);
-  print ">> ", $clr[1], scalar(@artists), $clr[9], 
-        " tracks found by artist(s) matching $clr[3]$search $clr[9]\n";
+  print ">> ", $c[1], scalar(@artists), $c[9], 
+        " tracks found by artist(s) matching $c[3]$search $c[9]\n";
 }
 
 sub search_title  {
   my $search = shift;
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
-    print ">> $clr[2]$search$clr[9]: nothing found\n";
+    print ">> $c[2]$search$c[9]: nothing found\n";
     exit 1;
   }
   my @files;
@@ -658,8 +684,8 @@ sub search_title  {
     push(@files, $song->file);
   }
   &pipe_add(@files);
-  print ">> ", $clr[1], scalar(@songs), $clr[9],
-        " titles found matching $clr[3]$search $clr[9]\n";
+  print ">> ", $c[1], scalar(@songs), $c[9],
+        " titles found matching $c[3]$search $c[9]\n";
 }
 
 sub pipe_add {
@@ -679,7 +705,7 @@ sub current {
 
   if(!defined($artist) or(!defined($song))) {
     if(-t *STDOUT) { #output to terminal?
-      $current = sprintf("$clr[1] >>$clr[9] %s\033[1m%s\033[0m",
+      $current = sprintf("$c[1] >>$c[9] %s\033[1m%s\033[0m",
         "$basedir/", $cu->file);
     }
     else {
@@ -689,7 +715,7 @@ sub current {
   }
   else {
     if(-t *STDOUT) { # FIXME make this a to-be-called function
-      $current = sprintf("$clr[3] >>$clr[9] %s - \033[1m%s\033[0m ",
+      $current = sprintf("$c[3] >>$c[9] %s - \033[1m%s\033[0m ",
         $artist, $song) .
           sprintf("from \033[1m%s\033[0m ($bitrate kbps) [$genre]", $album);
     }
