@@ -14,19 +14,17 @@ use Data::Dumper;
 
 help() if(!@ARGV);
 
+my $config = "$ENV{XDG_CONFIG_HOME}/pimpd/pimpd.conf";
 if($DEBUG) {
   require "./pimpd.conf";
 }
 else {
-  eval {require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";};
-    if($@) {
-      require "/etc/pimpd.conf";
-    }
-    else {
-      require "$ENV{'XDG_CONFIG_HOME'}/pimpd/pimpd.conf";
-    }
+  eval {require $config;};
+  if($@) {
+    $config = "/etc/pimpd.conf";
+  }
+  require($config);
 }
-
 
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
@@ -170,8 +168,11 @@ play_from_list()                        if $opt_play_from_list;
 monitoring()                            if $opt_monitoring;
 
 if($opt_monitor_d) {
+  if(!defined($daemon_cmd)) {
+    print STDERR "No daemon command specified in $config\n" and exit(1);
+  }
   if(-e $pidfile) {
-    print STDERR "pimpd is already running\n" and exit(-1);
+    print STDERR "pimpd is already running\n" and exit(1);
   }
   else {
     monitoring();
@@ -506,8 +507,6 @@ sub killkid {
   }
   exit(0);
 }
-
-
 
 sub monitoring {
   my $np = "";
