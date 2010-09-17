@@ -467,6 +467,10 @@ sub list_albums {
 
 sub play_from_list {
   my $choice = $ARGV[0];
+  if(!$choice) {
+    print STDERR "What should we play?\n";
+    exit(1);
+  }
   if($choice !~ /^\d+$/) {
     print STDERR "Integers only, please.\n";
     exit(1);
