@@ -1,83 +1,81 @@
-Perl Interface for the Music Player Daemon
-==========================================
+# NAME
 
-pimpd is an MPD client written in perl that strives to implement the features
-mpc is missing. This includes, but is not limited to:
+  pimpd - Perl Interface for the Music Player Daemon
 
-  * Regular expression based database queries
-  * Regular expression based searches in active playlist
-  * Quick searches for artist, album and title
-  * Randomizing of playlist; you could add 100 (carefully!) randomly selected
-    tracks to your playlist
-  * Fetching of lyrics on demand
-  * Queue functionality
-  * Interactive shell for basic MPD operations
-  * Monitoring of MPD - Whenever a song change takes place, pimpd announces
-  * Ability to easily copy current track to specified location; i.e your portable  
-    musicplayer of choice or maybe to your to-burn directory
-  * Huge load of interesting information regarding what's currently spinning
-  * Support for 256 colors
-  * Support for colorschemes
+# SYNOPSIS
 
-![screenshot](http://github.com/trapd00r/pimpd/raw/master/pimpd-1.4-screenshot2.png)
+  pimpd [OPTIONS...] (ARG)
 
+# DESCRIPTION
 
+  pimpd is an MPD client written in Perl that implements regular expression
+  based database/playlist queries, randomizing of playlists, queue
+  functionality, interactive shell, monitoring (to STDOUT and daemonized),
+  ability to copy the currently playing song to your portable player, favorizing
+  of specific tracks, loads of information spamming, support for colorschemes
+  and 256 colors, and quite a bit more. See OPTIONS for a full specification.
 
-Please see below for a full list of options.
-    Usage: pimpd.pl [OPTIONS] (ARGUMENT)
+  All of this works on local MPD servers as well as remote ones.
 
-    OPTIONS:
-        -i, --info          print current information
-       -np, --current       print current information in one line
-        -r, --randomize     randomize a new playlist with <integer> tracks
-        -c, --copy          copy the current track to location <string> 
-        -f, --favorite      favorize the current track. If no name for the
-                            playlist is given, the 'genre' id3-tag is used
-        -l, --listalbums    list all albums by <string> or current artist
-        -s, --show          show current playlist
-        -p, --play          play the number <integer> track in playlist
-        -a, --add           add playlist <string> and play it
-        -m, --monitor       monitor MPD for song changes, output on STDOUT
-       -ly, --lyrics        show lyrics for the current song
-        -q, --queue         queue <integer> tracks in playlist
-        -e, --external      list all tracks in external playlist <string>
-       -ct, --ctrl          spawn the interactive pimpd shell 
-      -spl, --search-pl     search the active playlist for <pattern>
-      -sdb, --search-db     search the database for <pattern> and add the 
-                            results to active playlist
-      -sar, --search-artist search for artist name containing <string>
-      -sal, --search-album  search for album name containing <string>
-      -set, --search-title  search for song title containing <string>
-       -no, --nocolor       dont use colorized output
+# OPTIONS
 
-        -h, --help          show this help
+  -i,     --info          print all information available
+  -np,    --current       print now playing information on single line
+  -r,     --random        randomize a new playlist with n tracks
+  -cp,    --copy          copy the current track to specified location (C)
+  -f,     --fav           favorize the current track. If no name for the playlist
+                          is specified, the GENRE id3-tag is used
+  -l,     --listalbums    list all albums by artist
+  -p,     --playlist      show the current playlist
+  -t,     --track         play track number n from playlist
+  -a,     --add           add playlist and play it
+  -m,     --monitor       monitor MPD for song changes (output on STDOUT)
+  -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
+                          output should go is specified in the configuration file.
+  -q,     --queue         queue specified tracks
+  -e,     --external      list all tracks in external playlist
+          --ctrl          spawn the interactive pimpd shell
+  -spl,   --search-pl     search the current playlist for pattern and queue the
+                          results
+  -sdb,   --search-db     search the database for pattern and add the results to
+                          the current playlist
+  -sar,   --search-artist search the database for artist and add the results to 
+                          the current playlist
+  -sal,   --search-album  search the database for album and add the result to
+                          the current playlist
+  -set,   --search-title  search the database for title and add the results to
+                          the current playlist
+  -no,    --no-color      turn colors off (C)
+          --host          remote MPD host (C)
+          --port          remote MPD port (C)
+          --pass          remote MPD password (C)
+          --ssh-host      remote SSH server host (used for -cp) (C)
+          --ssh-port      remote SSH server port (used for -cp) (C)
 
-    PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(d+)'
+  -h,     --help          show the help and exit
+          --man           show the manpage and exit
 
+# ENVIRONMENT
 
-To install the dependencies:
+The configuration file should be placed in $XDG_CONFIG_HOME/pimpd/pimpd.conf OR
+/etc/pimpd.conf
 
-    # ./INSTALL_MODULES
+# AUTHOR
 
-or use your package manager of choice.
-In archlinux, you could just use:
-    $ yaourt -S perl-html-tokeparser-simple perl-audio-mpd perl-libwww
-                perl-text-autoformat
+Written by Magnus Woldrich
 
-To install pimpd:
-  Copy the configuration file to either /etc/pimpd.conf or
-  $XDG_CONFIG_HOME/pimpd/pimpd.conf
+# REPORTING BUGS
 
-  Copy pimpd to /usr/bin or any other location you prefer in your $PATH
+Report bugs and feature requests at the issue tracker
+<http://github.com/trapd00r/pimpd/issues>
 
-Dont forget to edit the configuration file.
+Report your love and send virtual hugs to <trapd00r@trapd00r.se>
+If you need to send more then virtual hugs - contact me by the mail first.
 
-License
-=======
-Copyright (C) 2010 Magnus Woldrich
+# COPYRIGHT
 
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License, version 2, as published by the
-Free Software Foundation
+Copyright (C) 2009, 2010 Magnus Woldrich
 
-              
+# SEE ALSO
+
+__rmcd__  <http://github.com/trapd00r/rmcd>

@@ -758,7 +758,14 @@ sub help {
 
 =head1 DESCRIPTION
 
-pimpd
+  pimpd is an MPD client written in Perl that implements regular expression
+  based database/playlist queries, randomizing of playlists, queue
+  functionality, interactive shell, monitoring (to STDOUT and daemonized),
+  ability to copy the currently playing song to your portable player, favorizing
+  of specific tracks, loads of information spamming, support for colorschemes
+  and 256 colors, and quite a bit more. See OPTIONS for a full specification.
+
+  All of this works on local MPD servers as well as remote ones.
 
 =head1 OPTIONS
 
