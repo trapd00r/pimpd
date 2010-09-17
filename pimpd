@@ -467,10 +467,18 @@ sub list_albums {
 
 sub play_from_list {
   my $choice = $ARGV[0];
+  if($choice !~ /^\d+$/) {
+    print STDERR "Integers only, please.\n";
+    exit(1);
+  }
+  if($choice > $mpd->status->playlistlength) {
+    print STDERR "There are \e[1m" . $mpd->status->playlistlength
+      . "\e[0m songs in the playlist. Pick one of them!\n";
+    exit(1);
+  }
   $mpd->play($choice);
-  print &current;
-
-  exit 0;
+  print current();
+  exit(0);
 }
 
 sub daemonize {
