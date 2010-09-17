@@ -408,7 +408,9 @@ sub cp {
   # escape evil chars the shell will munch
   $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
-  return scp($ssh_host, $ssh_port, "$basedir/$file", $dir);
+  if(defined($remote_host)) {
+    return scp($ssh_host, $ssh_port, "$basedir/$file", $dir)
+  }
 
   if(copy("$basedir/$file", $dir)) {
     print "$file => $dir\n";
