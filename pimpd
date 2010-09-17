@@ -10,6 +10,7 @@ use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
 use Data::Dumper;
+use File::Copy;
 
 
 help() if(!@ARGV);
@@ -29,7 +30,7 @@ else {
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile);
+     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port);
 
 
 our (@opt_queue, $opt_ctrl, @opt_list_external,
@@ -41,13 +42,23 @@ our (@opt_queue, $opt_ctrl, @opt_list_external,
      );
 
 my $e = "\e[38;5";
+my $mpd;
+if(defined($remote_host)) {
+  $mpd = Audio::MPD->new(
+    host      => $remote_host,
+    port      => $remote_port,
+    pass      => $remote_pass,
+  );
+}
+else {
+  $mpd = Audio::MPD->new;
+}
 
-# :{,} == zero or more
 GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
-  'copy'               => \&cptoPort,
+  'copy'               => \&cp,
   'favorite'           => \$opt_favlist,
   'listalbums'         => \$opt_list_albums,
   'show'               => \$opt_playlist,
@@ -73,18 +84,6 @@ GetOptions(
   'debug'              => \$DEBUG,
   'help'               => \&help,
 );
-
-my $mpd;
-if(defined($remote_host)) {
-  $mpd = Audio::MPD->new(
-    host      => $remote_host,
-    port      => $remote_port,
-    pass      => $remote_pass,
-  );
-}
-else {
-  $mpd = Audio::MPD->new;
-}
 
 if($opt_color) {
   @c = (); # when piped to non-shell apps, \033[0m will look ugly
@@ -411,21 +410,23 @@ sub scp_module {
 
 sub scp_binary {
   my $host = shift;
+  my $port = shift;
   my $src  = shift;
   my $dest = shift;
 
   $src  =~ s/([ '"&;|])/\\$1/g;
   $dest =~ s/([ '"&;|])/\\$1/g;
-  `/usr/bin/scp '$host:$src' '$dest'`;
+  system('scp', "-P $port", "$host:$src", $dest);
   
   exit 0;
 }
 
-sub cptoPort {
+sub cp {
   my $dir  = $ARGV[0] // $portable;
   my $file = $mpd->current->file;
   if(defined($remote_host)) {
-    return scp1($remote_host, $basedir.$file, $dir);
+    #print "$remote_host, $basedir.$file, $dir";
+    return scp_binary($remote_host, $ssh_port, "$basedir/$file", $dir);
   }
   chomp($file);
   copy("$basedir/$file", $dir) or die "Failure: $! \n";
