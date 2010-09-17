@@ -480,7 +480,7 @@ sub play_from_list {
       . "\e[0m songs in the playlist. Pick one of them!\n";
     exit(1);
   }
-  $mpd->play($choice);
+  $mpd->play($choice-1);
   print current();
   exit(0);
 }
