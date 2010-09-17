@@ -11,9 +11,14 @@ use Pod::Usage;
 use Getopt::Long;
 use Data::Dumper;
 use File::Copy;
+use Carp;
+use Pod::Usage;
 
-
-help() if(!@ARGV);
+if(!@ARGV) {
+  print "$APP $VERSION\n";
+  pod2usage(verbose => 1);
+  exit(0);
+}
 
 my $config = "$ENV{XDG_CONFIG_HOME}/pimpd/pimpd.conf";
 if($DEBUG) {
@@ -30,7 +35,8 @@ else {
 # imported variables from the config file
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port);
+     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port,
+     $ssh_host);
 
 
 our (@opt_queue, $opt_ctrl, @opt_list_external,
@@ -58,13 +64,13 @@ GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
-  'copy'               => \&cp,
+  'cp|copy'            => \&cp,
   'favorite'           => \$opt_favlist,
   'listalbums'         => \$opt_list_albums,
-  'show'               => \$opt_playlist,
-  'play'               => \$opt_play_from_list,
+  'p|playlist'         => \$opt_playlist,
+  'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
-  'monitor'            => \$opt_monitoring,
+  'm|monitor'          => \$opt_monitoring,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
   'lyrics'             => \&lyrics,
@@ -79,6 +85,8 @@ GetOptions(
   'host:s'             => \$remote_host,
   'port:s'             => \$remote_port,
   'pass:s'             => \$remote_pass,
+  'ssh_host'           => \$ssh_host,
+  'ssh_port'           => \$ssh_port,
 
   'kill'               => \&killkid,
   'debug'              => \$DEBUG,
@@ -384,54 +392,32 @@ sub list_external {
   exit 0;
 }
 
-sub scp($$$$) {
-  return scp_module(@_) if eval("require Net::SCP;");
-  return scp_binary(@_) if -x `which scp`;
-  print STDERR 'Failure: No suitable way to transfer file';
-
-  exit 0;
-}
-
-sub scp_module {
-  require Net::SCP;
-  my $host = shift;
-  my $src  = shift;
-  my $dest = shift;
+sub scp {
+  my($host, $port, $src, $dest) = @_;
 
   $src  =~ s/([ '"&;|])/\\$1/g;
   $dest =~ s/([ '"&;|])/\\$1/g;
-  print $dest, $src =~ /^.*\/(.*)$/, "\n";
-
-  my $scp = Net::SCP->new($host, $remote_user);
-  $scp->get($src, $dest) || die $scp->{errstr};
-
-  exit 0;
-}
-
-sub scp_binary {
-  my $host = shift;
-  my $port = shift;
-  my $src  = shift;
-  my $dest = shift;
-
-  $src  =~ s/([ '"&;|])/\\$1/g;
-  $dest =~ s/([ '"&;|])/\\$1/g;
-  system('scp', "-P $port", "$host:$src", $dest);
-  
-  exit 0;
+  system('scp', "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
+  exit(0);
 }
 
 sub cp {
-  my $dir  = $ARGV[0] // $portable;
-  my $file = $mpd->current->file;
-  if(defined($remote_host)) {
-    #print "$remote_host, $basedir.$file, $dir";
-    return scp_binary($remote_host, $ssh_port, "$basedir/$file", $dir);
-  }
-  chomp($file);
-  copy("$basedir/$file", $dir) or die "Failure: $! \n";
+  my $dir = $portable;
+  chomp(my $file = $mpd->current->file);
 
-  exit 0;
+  # escape evil chars the shell will munch
+  $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+
+  if(defined($remote_host)) {
+    return scp($remote_host, $ssh_port, "$basedir/$file", $dir);
+  }
+  if(copy("$basedir/$file", $dir)) {
+    print "$file => $dir\n";
+  }
+  else {
+    print STDERR "cp: $!\n";
+  }
+  exit(0);
 }
 
 sub favlist {
@@ -728,41 +714,61 @@ sub current {
   return($current);
 }
 
-sub help {
-  print << "HELP";
-  $APP $VERSION
-  Copyright (C) 2009-2010 Magnus Woldrich. Licensed under the GNU GPL version 2.
-  Usage: $0 [OPTIONS] (ARGUMENT)
 
-  OPTIONS:
-      -i, --info          print current information
-     -np, --current       print current information in one line
-      -r, --randomize     randomize a new playlist with <integer> tracks
-      -c, --copy          copy the current track to location <string> 
-      -f, --favorite      favorize the current track. If no name for the
-                          playlist is given, the 'genre' id3-tag is used
-      -l, --listalbums    list all albums by <string> or current artist
-      -s, --show          show current playlist
-      -p, --play          play the number <integer> track in playlist
-      -a, --add           add playlist <string> and play it
-      -m, --monitor       monitor MPD for song changes, output on STDOUT
-     -ly, --lyrics        show lyrics for the current song
-      -q, --queue         queue <integer> tracks in playlist
-      -e, --external      list all tracks in external playlist <string>
-     -ct, --ctrl          spawn the interactive pimpd shell 
-    -spl, --search-pl     search the active playlist for <pattern>
-    -sdb, --search-db     search the database for <pattern> and add the 
-                          results to active playlist
-    -sar, --search-artist search for artist name containing <string>
-    -sal, --search-album  search for album name containing <string>
-    -set, --search-title  search for song title containing <string>
-     -no, --nocolor       dont use colorized output
+=pod
 
-     -ho, --host          remote host, if any
-     -po, --port          remote port, if any
-     -pa, --pass          remote pass, if any
+=head1 NAME
 
-      -h, --help          show this help
+  pimpd - Perl Interface for the Music Player Daemon
+
+=head1 USAGE
+
+  pimpd [OPTIONS...] (ARG)
+
+=head1 DESCRIPTION
+
+pimpd
+
+=head1 OPTIONS
+
+  -i,     --info          print all information available
+  -np,    --current       print now playing information on single line
+  -r,     --random        randomize a new playlist with n tracks
+  -cp,    --copy          copy the current track to specified location (C)
+  -f,     --fav           favorize the current track. If no name for the playlist
+                          is specified, the GENRE id3-tag is used
+  -l,     --listalbums    list all albums by artist
+  -p,     --playlist      show the current playlist
+  -t,     --track         play track number n from playlist
+  -a,     --add           add playlist and play it
+  -m,     --monitor       monitor MPD for song changes (output on STDOUT)
+  -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
+                          output should go is specified in the configuration file.
+  -q,     --queue         queue specified tracks
+  -e,     --external      list all tracks in external playlist
+          --ctrl          spawn the interactive pimpd shell
+  -spl,   --search-pl     search the current playlist for pattern and queue the
+                          results
+  -sdb,   --search-db     search the database for pattern and add the results to
+                          the current playlist
+  --sar,  --search-artist search for artist
+
+      -q,   --queue         queue <integer> tracks in playlist
+      -e,   --external      list all tracks in external playlist <string>
+     -ct,   --ctrl          spawn the interactive pimpd shell 
+    -spl,   --search-pl     search the active playlist for <pattern>
+    -sdb,   --search-db     search the database for <pattern> and add the 
+                            results to active playlist
+    -sar,   --search-artist search for artist name containing <string>
+    -sal,   --search-album  search for album name containing <string>
+    -set,   --search-title  search for song title containing <string>
+     -no,   --nocolor       dont use colorized output
+
+     -ho,   --host          remote host, if any
+     -po,   --port          remote port, if any
+     -pa,   --pass          remote pass, if any
+
+      -h,   --help          show this help
 
   PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
 HELP
