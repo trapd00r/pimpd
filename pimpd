@@ -90,7 +90,7 @@ GetOptions(
 
   'kill'               => \&killkid,
   'debug'              => \$DEBUG,
-  'help'               => \&help,
+  'h|help'             => \&help,
 );
 
 if($opt_color) {
@@ -398,7 +398,7 @@ sub scp {
   $src  =~ s/([ '"&;|])/\\$1/g;
   $dest =~ s/([ '"&;|])/\\$1/g;
   system('scp', "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
-  exit(0);
+  return(0);
 }
 
 sub cp {
@@ -408,9 +408,8 @@ sub cp {
   # escape evil chars the shell will munch
   $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
-  if(defined($remote_host)) {
-    return scp($remote_host, $ssh_port, "$basedir/$file", $dir);
-  }
+  return scp($ssh_host, $ssh_port, "$basedir/$file", $dir);
+
   if(copy("$basedir/$file", $dir)) {
     print "$file => $dir\n";
   }
@@ -714,6 +713,12 @@ sub current {
   return($current);
 }
 
+sub help {
+  print "$APP $VERSION\n";
+  pod2usage(verbose => 1);
+  exit(0);
+}
+
 
 =pod
 
@@ -721,7 +726,7 @@ sub current {
 
   pimpd - Perl Interface for the Music Player Daemon
 
-=head1 USAGE
+=head1 SYNOPSIS
 
   pimpd [OPTIONS...] (ARG)
 
@@ -751,26 +756,45 @@ pimpd
                           results
   -sdb,   --search-db     search the database for pattern and add the results to
                           the current playlist
-  --sar,  --search-artist search for artist
+  -sar,   --search-artist search the database for artist and add the results to 
+                          the current playlist
+  -sal,   --search-album  search the database for album and add the result to
+                          the current playlist
+  -set,   --search-title  search the database for title and add the results to
+                          the current playlist
+  -no,    --no-color      turn colors off (C)
+          --host          remote MPD host (C)
+          --port          remote MPD port (C)
+          --pass          remote MPD password (C)
+          --ssh-host      remote SSH server host (used for -cp) (C)
+          --ssh-port      remote SSH server port (used for -cp) (C)
 
-      -q,   --queue         queue <integer> tracks in playlist
-      -e,   --external      list all tracks in external playlist <string>
-     -ct,   --ctrl          spawn the interactive pimpd shell 
-    -spl,   --search-pl     search the active playlist for <pattern>
-    -sdb,   --search-db     search the database for <pattern> and add the 
-                            results to active playlist
-    -sar,   --search-artist search for artist name containing <string>
-    -sal,   --search-album  search for album name containing <string>
-    -set,   --search-title  search for song title containing <string>
-     -no,   --nocolor       dont use colorized output
+  -h,     --help          show the help and exit
+          --man           show the manpage and exit
 
-     -ho,   --host          remote host, if any
-     -po,   --port          remote port, if any
-     -pa,   --pass          remote pass, if any
+=head1 ENVIRONMENT
 
-      -h,   --help          show this help
+The configuration file should be placed in $XDG_CONFIG_HOME/pimpd/pimpd.conf OR
+/etc/pimpd.conf
 
-  PATTERN is Perl RE: '(foo|bar)', '(foo)?bar', 'foobarb.*', 'foo(\d+)'
-HELP
-exit 0;
-}
+=head1 AUTHOR
+
+Written by Magnus Woldrich
+
+=head1 REPORTING BUGS
+
+Report bugs and feature requests at the issue tracker
+<http://github.com/trapd00r/pimpd/issues>
+
+Report your love and send virtual hugs to <trapd00r@trapd00r.se>
+If you need to send more then virtual hugs - contact me by the mail first.
+
+=head1 COPYRIGHT
+
+Copyright (C) 2009, 2010 Magnus Woldrich
+
+=head1 SEE ALSO
+
+B<rmcd>  <http://github.com/trapd00r/rmcd>
+
+=cut
