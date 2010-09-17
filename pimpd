@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP     = 'pimpd';
-our $VERSION = '1.4.5';
+our $VERSION = '1.5.0';
 
 use strict;
 my $DEBUG = 0;
@@ -554,13 +554,13 @@ sub monitoring {
      }
 sub queue {
   my @to_play = @_;
-  if(@to_play < 1) {
+  if(scalar(@to_play < 1)) {
     print STDERR "The queue function requires at least one song \n";
-    exit 1;
+    exit(1)
   }
-  my @tracksinlist = $mpd->playlist->as_items;
 
-  my $argc         = 0;
+  my @tracksinlist = $mpd->playlist->as_items;
+  my $argc = 0;
 
   print ">> Starting queue...\n";
   while(scalar(@to_play) > $argc) {
@@ -569,7 +569,7 @@ sub queue {
     ++$argc;
     
     my $nextpos = $to_play[$argc];
-    print &current, "\n";
+    print current(), "\n";
     printf("$c[13]>>> %s - %s - %s $c[9]\n",
                                  $tracksinlist[$nextpos]->artist,
                                  $tracksinlist[$nextpos]->album,
