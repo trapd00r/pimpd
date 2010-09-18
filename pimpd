@@ -551,7 +551,8 @@ sub monitoring {
   }
 
   while(1) {
-    my $current = $mpd->current // undef;
+    my $current = $mpd->current;
+    return(1) if(!defined($current)); # not running?
     my $output;
     if($opt_monitor_d) {
       my $artist = $mpd->current->artist // 'undef';
