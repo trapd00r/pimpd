@@ -48,6 +48,8 @@ our (@opt_queue, $opt_ctrl, @opt_list_external,
      );
 
 my $e = "\e[38;5";
+
+
 my $mpd;
 if(defined($remote_host)) {
   $mpd = Audio::MPD->new(
@@ -60,11 +62,14 @@ else {
   $mpd = Audio::MPD->new;
 }
 
+our($opt_run_cp);
+# In case we want to specify another host...
+our($opt_remote_host, $opt_remote_port, $opt_remote_pass);
 GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
-  'cp|copy'            => \&cp,
+  'cp|copy'            => \$opt_run_cp,
   'favorite'           => \$opt_favlist,
   'listalbums'         => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
@@ -73,7 +78,6 @@ GetOptions(
   'm|monitor'          => \$opt_monitoring,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
-  'lyrics'             => \&lyrics,
   'ctrl'               => \$opt_ctrl,
   'external=s{1,}'     => \@opt_list_external,
   'spl|search-pl=s'    => \$opt_search_playlist,
@@ -82,9 +86,9 @@ GetOptions(
   'sar|search-artist=s'=> \$opt_search_artist,
   'set|search-title=s' => \$opt_search_title,
   'no-color|nocolor'   => \$opt_color,
-  'host:s'             => \$remote_host,
-  'port:s'             => \$remote_port,
-  'pass:s'             => \$remote_pass,
+  'host:s'             => \$opt_remote_host,
+  'port:s'             => \$opt_remote_port,
+  'pass:s'             => \$opt_remote_pass,
   'ssh_host'           => \$ssh_host,
   'ssh_port'           => \$ssh_port,
 
@@ -93,9 +97,25 @@ GetOptions(
   'h|help'             => \&help,
 );
 
+# ... we need to recreate the MPD object
+if($opt_remote_host) {
+  $opt_remote_port = ($opt_remote_port) ? ($opt_remote_port) : ($remote_port);
+  $opt_remote_pass = ($opt_remote_pass) ? ($opt_remote_pass) : ($remote_pass);
+  $mpd = Audio::MPD->new(
+    host  => $opt_remote_host,
+    port  => $opt_remote_port,
+    pass  => $opt_remote_pass,
+  );
+}
+
 if($opt_color) {
   @c = (); # when piped to non-shell apps, \033[0m will look ugly
 }
+
+# We need to create the MPD object and parse options first. Now we have done
+# that.
+
+cp() if($opt_run_cp);
 
 do {
   my $i = 0;
@@ -326,7 +346,7 @@ sub playlist {
   $header = "Playlist:\n" if($header eq 'show');
 
   my @playlist = $mpd->playlist->as_items;
-  my $i        = 0;
+  my $i        = -1; # so we can count from 1
 
   print $header;
   printf("%29s %6s\n", 'ARTIST', 'SONG');
@@ -570,8 +590,9 @@ sub queue {
   while(scalar(@to_play) > $argc) {
     $mpd->play($to_play[$argc]);
     my $time = $mpd->current->time;
-    ++$argc;
-    
+    $argc++;
+
+    #NOTE is the queue really correct?
     my $nextpos = $to_play[$argc];
     print current(), "\n";
     printf("$c[13]>>> %s - %s - %s $c[9]\n",
