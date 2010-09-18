@@ -75,6 +75,11 @@ GetOptions(
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
+  'lp|lsp|list-pl'     => sub
+  {
+    print "$_\n" for sort($mpd->collection->all_playlists);
+    exit(0);
+  },
   'm|monitor'          => \$opt_monitoring,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
@@ -148,30 +153,37 @@ if($mpd->status->playlistlength < 1) {
     while(chomp(my $action = <STDIN>)) {
       if($action =~ /^sdb\s+(.+)/) {
         search_db($1);
+        exit(0);
       }
 
       elsif($action =~ /^rand\s+(.+)/) {
         randomize($1);
+        $mpd->play();
+        exit(0);
       }
 
       elsif($action =~ /add\s+(.+)/) {
         my $list = $1;
         add_playlist(split(/\s/, $list));
+        exit(0);
       }
 
       elsif($action =~ /set\s+(.+)/) {
         search_title($1);
         $mpd->play->();
+        exit(0);
       }
 
       elsif($action =~ /sar\s+(.+)/) {
         search_artist($1);
         $mpd->play;
+        exit(0);
       }
 
       elsif($action =~ /sal\s+(.+)/) {
         search_album($1);
         $mpd->play;
+        exit(0);
       }
 
       else {
@@ -384,34 +396,38 @@ sub add_playlist {
     }
 
     print ">> Adding...\n";
-    print "> ", "$_\n" for(@playlists);
+    print "> $_\n" for(@playlists);
     $mpd->play;
     exit(0);
   }
-  else {
-    my @playlists = $mpd->collection->all_playlists;
-    print "Available playlists: \n\n";
-    foreach my $playlist(sort(@playlists)) {
-      print $playlist, "\n";
-    }
-  }
-  exit 0;
 }
 
 sub list_external {
   my @playlists = @_;
 
-  foreach my $playlist(@playlists) {
-    my $fullpath = "$playlist_dir/$playlist\.m3u";
-    open(PLAYLIST, $fullpath) || die "Unable to open $fullpath: $!\n";
-    while(<PLAYLIST>) {
-      my $list = $_;
-      print "$c[4]$playlist$c[9]: $list";
+  for my $playlist(@playlists) {
+    my $full_path = "$playlist_dir/$playlist\.m3u";
+    if(defined($remote_host)) {
+      # $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+      open(
+        my $fh,
+        "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat $full_path\"|"
+      ) or die("$ssh_host:$ssh_port: $!");
+
+      while(<$fh>) {
+        print "$c[6]$playlist\e[0m: \e[1m$_\e[0m";
+      }
     }
-    close(PLAYLIST);
+    else {
+      open(my $fh, '<', $full_path) or die("Can not open $full_path: $!");
+      while(<$fh>) {
+        print "$c[4]$playlist\e[0m: \e[1m$_\e[0m";
+      }
+    }
   }
-  exit 0;
+  exit(0);
 }
+
 
 sub scp {
   my($host, $port, $src, $dest) = @_;
@@ -819,6 +835,7 @@ sub help {
   -f,     --fav           favorize the current track. If no name for the playlist
                           is specified, the GENRE id3-tag is used
   -l,     --listalbums    list all albums by artist
+  -lsp,   --list-pl       list all available playlists
   -p,     --playlist      show the current playlist
   -t,     --track         play track number n from playlist
   -a,     --add           add playlist and play it
