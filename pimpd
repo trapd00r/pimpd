@@ -140,50 +140,51 @@ sub listlen_empty_msg {
 }
 
 if($mpd->status->playlistlength < 1) {
-  listlen_empty_msg('Your playlist looks empty. Lets add some music')
-    unless($opt_randomize
-        or $opt_search_db
-        or $opt_search_album
-        or $opt_search_artist
-        or $opt_search_title
-        or @opt_add_playlist
-    );
 
-  print "pimpd\e[38;5;148m>\e[0m";
+  do {
+    listlen_empty_msg('Your playlist looks empty. Lets add some music');
+    print "pimpd\e[38;5;148m>\e[0m";
 
-  while(chomp(my $action = <STDIN>)) {
-    if($action =~ /^sdb\s+(.+)/) {
-      search_db($1);
+    while(chomp(my $action = <STDIN>)) {
+      if($action =~ /^sdb\s+(.+)/) {
+        search_db($1);
+      }
+
+      elsif($action =~ /^rand\s+(.+)/) {
+        randomize($1);
+      }
+
+      elsif($action =~ /add\s+(.+)/) {
+        my $list = $1;
+        add_playlist(split(/\s/, $list));
+      }
+
+      elsif($action =~ /set\s+(.+)/) {
+        search_title($1);
+        $mpd->play->();
+      }
+
+      elsif($action =~ /sar\s+(.+)/) {
+        search_artist($1);
+        $mpd->play;
+      }
+
+      elsif($action =~ /sal\s+(.+)/) {
+        search_album($1);
+        $mpd->play;
+      }
+
+      else {
+        listlen_empty_msg("$action: not valid!");
+      }
     }
-
-    elsif($action =~ /^rand\s+(.+)/) {
-      randomize($1);
-    }
-
-    elsif($action =~ /add\s+(.+)/) {
-      my $list = $1;
-      add_playlist(split(/\s/, $list));
-    }
-
-    elsif($action =~ /set\s+(.+)/) {
-      search_title($1);
-      $mpd->play->();
-    }
-
-    elsif($action =~ /sar\s+(.+)/) {
-      search_artist($1);
-      $mpd->play;
-    }
-
-    elsif($action =~ /sal\s+(.+)/) {
-      search_album($1);
-      $mpd->play;
-    }
-
-    else {
-      listlen_empty_msg("$action: not valid!");
-    }
-  }
+  } unless($opt_randomize
+      or $opt_search_db
+      or $opt_search_album
+      or $opt_search_artist
+      or $opt_search_title
+      or @opt_add_playlist
+  );
 }
 
 print current(), "\n"                   if $opt_current;
