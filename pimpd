@@ -36,7 +36,7 @@ else {
 our ($basedir, $playlist_dir, $fallback_playlist, $portable,
      $remote_host, $remote_pass, $remote_user, $history_playlist,
      $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port,
-     $ssh_host, $ssh_user);
+     $ssh_host, $ssh_user, $dzen_font, $dzen_cmd);
 
 
 our (@opt_queue, $opt_ctrl, @opt_list_external,
@@ -546,7 +546,9 @@ sub killkid {
 
 sub monitoring {
   my $np = "";
-  daemonize if($opt_monitor_d);
+  unless($DEBUG) {
+    daemonize if($opt_monitor_d);
+  }
 
   while(1) {
     my $current = $mpd->current // undef;
@@ -556,14 +558,28 @@ sub monitoring {
       my $album  = $mpd->current->album  // 'undef';
       my $title  = $mpd->current->title  // 'undef';
       my $genre  = $mpd->current->genre  // 'undef';
-      $output = sprintf("%s (%s) %s | %s", $artist, $album, $title, $genre);
+      my $year   = $mpd->current->date   // 0;
+
+      if($daemon_cmd eq 'dzen') {
+        $output = sprintf(
+          "^fg(#4af617)%s ^fg(#999999)by^fg() ^fg(#fa4b04)%s^fg(#999999) (^fg(#fa0443) %s^fg(#999999) ) ^fg(#999999)from ^fg(#1c79ed)%s^fg()",
+          $title, $artist, $album, $year);
+      }
+      else {
+        $output = sprintf("%s (%s) %s | %s", $artist, $album, $title, $genre);
+      }
     }
 
     if("$np" ne "$current") {
       $np = $current;
 
       if($opt_monitor_d) {
-        system("$daemon_cmd", "$output");
+        if($daemon_cmd eq 'dzen') {
+          system("echo \"$output\" | $dzen_cmd");
+        }
+        else {
+          system("$daemon_cmd \"$output\"");
+        }
       }
       else {
         my @date = localtime(time);
