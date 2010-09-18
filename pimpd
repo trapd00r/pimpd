@@ -705,9 +705,9 @@ sub search_album {
   foreach my $track(@tracks) {
     push(@files, $track->file);
   }
-  &pipe_add(@files);
-  print ">> ", $c[1], scalar(@files), $c[9],
-        " albums found matching $c[3]$search $c[9]\n";
+  pipe_add(@files);
+  print ">> ", "\e[1m$c[6]", scalar(@files), "\e[0m",
+        " tracks found matching \e[1m$c[10]$search\e[0m$c[9] in the \e[1malbum\e[0m tag\n";
 }
 
 sub search_artist {
@@ -722,8 +722,8 @@ sub search_artist {
     push(@files, $artist->file);
   }
   &pipe_add(@files);
-  print ">> ", $c[1], scalar(@artists), $c[9], 
-        " tracks found by artist(s) matching $c[3]$search $c[9]\n";
+  print ">> ", "\e[1m$c[6]\e[0m", scalar(@artists), "\e[0m",
+        " tracks found by artist(s) matching \e[1m$c[10]$search\e[0m$c[9]\n";
 }
 
 sub search_title  {
@@ -738,8 +738,8 @@ sub search_title  {
     push(@files, $song->file);
   }
   &pipe_add(@files);
-  print ">> ", $c[1], scalar(@songs), $c[9],
-        " titles found matching $c[3]$search $c[9]\n";
+  print ">> ", "\e[1m$c[6]", scalar(@songs), "\e[0m",
+        " titles found matching $c[10]$search $c[9]\n";
 }
 
 sub pipe_add {
