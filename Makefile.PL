@@ -10,6 +10,9 @@ WriteMakefile(
     EXE_FILES => ['pimpd'],
     LICENSE => "GPLv2",
     MIN_PERL_VERSION => 5.000,
+    MAN1PODS  => {
+      'pimpd' => 'blib/man1/pimpd.1',
+    },
     PREREQ_PM => {
         'Audio::MPD'               => 0,
     },
