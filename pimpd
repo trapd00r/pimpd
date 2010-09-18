@@ -71,7 +71,7 @@ GetOptions(
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
   'favorite'           => \$opt_favlist,
-  'listalbums'         => \$opt_list_albums,
+  'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
@@ -428,7 +428,6 @@ sub list_external {
   exit(0);
 }
 
-
 sub scp {
   my($host, $port, $src, $dest) = @_;
 
@@ -489,17 +488,19 @@ sub favlist {
 
   print $c[1].$filepath,$c[9].' >> ',$c[3]."$fullpath\.m3u",$c[0], "\n";
 
-  exit 0;
+  exit(0);
 }
 
 sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
   my @albums = sort($mpd->collection->albums_by_artist($artist));
-  print "$c[1]$artist$c[9] is featured on:\n\n";
-  foreach my $album(@albums) {
-    print $album, "\n";
+
+  for(sort(@albums)) {
+    print "$_\n";
   }
-  exit 0;
+  printf("\n$c[0]\e[1m%s\e[0m is featured on \e[1m%d\e[0m albums\n",
+    $artist, scalar(@albums),
+  );
 }
 
 sub play_from_list {
