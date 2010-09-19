@@ -42,7 +42,7 @@ our ($basedir, $playlist_dir, $fallback_playlist, $portable,
 our (@opt_queue, $opt_shell, @opt_list_external,
      $opt_search_playlist, $opt_search_db, $opt_information, #FIXME
      $opt_randomize, @opt_add_playlist, $opt_playlist,
-     $opt_favlist, $opt_play_from_list, $opt_monitoring, $opt_list_albums,
+     $opt_favlist, $opt_play_from_list, $opt_monitor, $opt_list_albums,
      $opt_current, $opt_search_album, $opt_search_artist,
      $opt_search_title, $opt_monitor_d,
      );
@@ -80,7 +80,7 @@ GetOptions(
     print "$_\n" for sort($mpd->collection->all_playlists);
     exit(0);
   },
-  'm|monitor'          => \$opt_monitoring,
+  'm|monitor'          => \$opt_monitor,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
   'shell'               => \$opt_shell,
@@ -131,7 +131,8 @@ do {
 } if($DEBUG);
 
 sub shell_msg_help {
-  printf("%s\n
+  printf("%s %s\n%s
+    $APP $VERSION
     OPTIONS:
         rand  n    randomize a new playlist with n tracks
         add   s    add playlist s
@@ -139,6 +140,7 @@ sub shell_msg_help {
         sar   p    search for artists matching pattern
         sal   p    search for albums matching pattern
         set   p    search for titles matching pattern
+        spl   p    search the playlist for pattern
         list  NIL  show the current playlist
         info  NIL  show now playing information
         np    NIL  show the currently playing track
@@ -149,12 +151,13 @@ sub shell_msg_help {
         re    NIL  toggle repeat on/off
         cl    NIL  clear the current playlist
         cr    NIL  crop the current track
+        q     n    queue n tracks
+        l     NIL  list all albums featuring artist
+        *e     s    list all tracks in playlist s
 
         :q    NIL  exit
 
-
-
-        ", shift,
+        \n", shift,
       );
 }
 
@@ -178,7 +181,7 @@ playlist()                              if $opt_playlist;
 favlist()                               if $opt_favlist;
 list_albums()                           if $opt_list_albums;
 play_from_list()                        if $opt_play_from_list;
-monitoring()                            if $opt_monitoring;
+monitor()                               if $opt_monitor;
 
 if($opt_monitor_d) {
   if(!defined($daemon_cmd)) {
@@ -188,7 +191,7 @@ if($opt_monitor_d) {
     print STDERR "pimpd is already running\n" and exit(1);
   }
   else {
-    monitoring();
+    monitor();
   }
 }
 randomize($opt_randomize)               if $opt_randomize;
@@ -530,7 +533,7 @@ sub killkid {
   exit(0);
 }
 
-sub monitoring {
+sub monitor {
   my $np = "";
   unless($DEBUG) {
     daemonize if($opt_monitor_d);
@@ -573,12 +576,13 @@ sub monitoring {
         my @rc = shuffle(@c);
         my $file = $mpd->current->file;
         printf("%02s:%02s:%02s | $rc[0]%.68s$c[9]\n",
-               $date[2], $date[1], $date[0], $file);
-           }
-         }
-         sleep 2;
-       }
-     }
+          $date[2], $date[1], $date[0], $file);
+      }
+    }
+    sleep 2;
+  }
+}
+
 sub queue {
   my @to_play = @_;
   if(scalar(@to_play < 1)) {
@@ -620,7 +624,7 @@ sub queue {
 
 sub shell {
   my $option = shift;
-  my($cmd, $arg);
+  my($cmd, $arg); # for later use
   shell_msg_help();
 
   my $opts = {
@@ -639,6 +643,18 @@ sub shell {
     'info'      => sub {
       information();
     },
+    'mon'       => sub {
+      monitor();
+    },
+    'spl'       => sub {
+      search_playlist(@_);
+    },
+    'l'         => sub {
+      list_albums();
+    },
+    'e'         => sub {
+      list_external(@_);
+    },
 
     'n'         => sub { $mpd->next; print current() . "\n" },
     'p'         => sub { $mpd->prev; print current() . "\n" },
@@ -651,16 +667,18 @@ sub shell {
     'np'        => sub {
       print current() . "\n"
     },
-    'ra' =>  sub {$mpd->random; print $mpd->status->random, "\n"},
-    're' =>  sub {$mpd->repeat; print $mpd->status->repeat, "\n"},
-    'cl' =>  sub {$mpd->playlist->clear},
-    'cr' =>  sub {$mpd->playlist->crop},
-    ':q' =>  sub {exit 0},
+    'q'         => sub { queue(@_) },
+    'ra'        => sub { $mpd->random; print $mpd->status->random . "\n" },
+    're'        => sub { $mpd->repeat; print $mpd->status->repeat . "\n" },
+    'cl'        => sub { $mpd->playlist->clear },
+    'cr'        => sub { $mpd->playlist->crop },
+    ':q'        => sub { exit 0},
   };
 
   while(1) {
     print "$c[6]pimpd\e[1m>\e[0m\e[1m$c[0] ";
     chomp(my $choice = <STDIN>);
+    print "\e[0m";
     ($cmd, $arg) = split(/\s+/, $choice);
     defined($opts->{$cmd}) && $opts->{$cmd}->($arg);
   }
@@ -743,13 +761,13 @@ sub search_title  {
 }
 
 sub pipe_add {
-  my @files = (@_);
-  foreach my $file(@files) {
-    print $file, "\n";
-    $mpd->playlist->add($file);
+  return if(!@_);
+  for(@_) {
+    print "$_\n";
   }
-} 
-  
+  $mpd->playlist->add($_);
+}
+
 sub current {
   my $cu = $mpd->current;
   my($artist,$song,$album,$bitrate,$genre) = ($cu->artist,$cu->title,$cu->album,
