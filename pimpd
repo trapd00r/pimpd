@@ -744,10 +744,14 @@ sub search_playlist {
   my @found;
 
   for(@playlist) {
-    if($_ =~ /$search/i) {
-      print '> ' . $_->title . "\n";
+    if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
+      print "${^PREMATCH}$c[6]\e[1m$1\e[0m$2\n";
     }
+  }
+  if(scalar(@found) < 1) {
+    print "No match on \e[1m$search\e[0m in the current playlist\n";
+    exit(0);
   }
   queue(@found);
 }
