@@ -756,7 +756,7 @@ sub search_artist {
     print $artist->file,"\n";
     push(@files, $artist->file);
   }
-  #pipe_add(@files);
+  pipe_add(@files);
   print ">> ", "\e[1m$c[6]\e[0m", scalar(@artists), "\e[0m",
         " tracks found by artist(s) matching \e[1m$c[10]$search\e[0m$c[9]\n";
 }
@@ -779,10 +779,8 @@ sub search_title  {
 
 sub pipe_add {
   return if(!@_);
-  for(@_) {
-    print "$_\n";
-  }
-  $mpd->playlist->add($_);
+  print "$_\n" for @_;
+  $mpd->playlist->add(@_);
 }
 
 sub current {
