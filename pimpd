@@ -1,6 +1,7 @@
 #!/usr/bin/perl
-our $APP     = 'pimpd';
-our $VERSION = '1.6.0';
+our $APP      = 'pimpd';
+our $VERSION  = '1.6.1';
+our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
 use strict;
 my $DEBUG = 0;
@@ -32,23 +33,57 @@ else {
   require($config);
 }
 
-# imported variables from the config file
-our ($basedir, $playlist_dir, $fallback_playlist, $portable,
-     $remote_host, $remote_pass, $remote_user, $history_playlist,
-     $opt_color, @c, $daemon_cmd, $remote_port, $pidfile, $ssh_port,
-     $ssh_host, $ssh_user, $dzen_font, $dzen_cmd);
+# Imported from the config
+our(
+  $basedir,
+  $playlist_dir,
+  $fallback_playlist,
+  $portable,
+  $remote_host,
+  $remote_port,
+  $remote_user,
+  $remote_pass,
+  $ssh_host,
+  $ssh_port,
+  $ssh_user,
+  $history_playlist,
+  $opt_color,
+  @c,
+  $daemon_cmd,
+  $pidfile,
+  $dzen_cmd,
+  $dzen_font,
+);
 
+# Used for GetOptions()
+our(
+  @opt_queue,
+  $opt_shell,
+  @opt_list_external,
+  $opt_information,
+  $opt_search_artist,
+  $opt_search_album,
+  $opt_search_title,
+  $opt_search_playlist,
+  $opt_search_db,
+  $opt_randomize,
+  @opt_add_playlist,
+  $opt_playlist,
+  $opt_favlist,
+  $opt_play_from_list,
+  $opt_monitor,
+  $opt_monitor_d,
+  $opt_list_albums,
+  $opt_current,
+  $opt_run_cp,
 
-our (@opt_queue, $opt_shell, @opt_list_external,
-     $opt_search_playlist, $opt_search_db, $opt_information, #FIXME
-     $opt_randomize, @opt_add_playlist, $opt_playlist,
-     $opt_favlist, $opt_play_from_list, $opt_monitor, $opt_list_albums,
-     $opt_current, $opt_search_album, $opt_search_artist,
-     $opt_search_title, $opt_monitor_d,
-     );
+  # So we could override configured settings on the commandline
+  $opt_remote_host,
+  $opt_remote_port,
+  $opt_remote_pass,
+);
 
 my $e = "\e[38;5";
-
 
 my $mpd;
 if(defined($remote_host)) {
@@ -62,15 +97,12 @@ else {
   $mpd = Audio::MPD->new;
 }
 
-our($opt_run_cp);
-# In case we want to specify another host...
-our($opt_remote_host, $opt_remote_port, $opt_remote_pass);
 GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
-  'favorite'           => \$opt_favlist,
+  'f|favorite'         => \$opt_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
@@ -96,6 +128,7 @@ GetOptions(
   'pass:s'             => \$opt_remote_pass,
   'ssh_host'           => \$ssh_host,
   'ssh_port'           => \$ssh_port,
+  'ssh_user'           => \$ssh_user,
 
   'kill'               => \&killkid,
   'debug'              => \$DEBUG,
@@ -117,9 +150,6 @@ if($opt_remote_host) {
 if($opt_color) {
   @c = (); # when piped to non-shell apps, \033[0m will look ugly
 }
-
-# We need to create the MPD object and parse options first. Now we have done
-# that.
 
 cp() if($opt_run_cp);
 
@@ -157,7 +187,8 @@ sub shell_msg_help {
         e     s    list all tracks in playlist s
         h     NIL  show this help
 
-        :q    NIL  exit
+        exit  NIL  exit
+
 
         \n", shift,
       );
@@ -320,14 +351,14 @@ sub information {
 sub randomize {
   my $count = shift // 100;
   my @songs = shuffle($mpd->collection->all_pathes);
-  #@songs    = shuffle(@songs);
+
   $mpd->playlist->clear;
   $mpd->playlist->add(@songs[0 .. $count-1]);
   $mpd->random(1);
   $mpd->repeat(1);
   $mpd->play;
-  my $message = "Added $count random songs:\n\n";
-  playlist($message);
+
+  playlist("Added $count random songs:\n\n");
 }
 
 sub playlist {
@@ -335,7 +366,7 @@ sub playlist {
   $header = "Playlist:\n" if($header eq 'show');
 
   my @playlist = $mpd->playlist->as_items;
-  my $i        = 0; # so we can count from 1
+  my $i        = 0;
 
   print $header;
   printf("%29s %6s\n", 'ARTIST', 'SONG');
@@ -554,8 +585,11 @@ sub monitor {
 
       if($daemon_cmd eq 'dzen') {
         $output = sprintf(
-          "^fg(#4af617)%s ^fg(#999999)by^fg() ^fg(#fa4b04)%s^fg(#999999) (^fg(#fa0443) %s^fg(#999999) ) ^fg(#999999)from ^fg(#1c79ed)%s^fg()",
-          $title, $artist, $album, $year);
+          "^fg(#4af617)%s ^fg(#999999)by^fg() ^fg(#fa4b04)%s^fg(#999999)",
+            $title, $artist
+            . sprintf(" (^fg(#fa0443) %s^fg(#999999) ) ", $album)
+            . sprintf("^fg(#999999)from ^fg(#1c79ed)%s^fg()", $year)
+          );
       }
       else {
         $output = sprintf("%s (%s) %s | %s", $artist, $album, $title, $genre);
@@ -708,44 +742,40 @@ sub search_playlist {
   my $search   = shift;
   my @playlist = $mpd->playlist->as_items;
   my @found;
-  
-  foreach my $song(@playlist) {
-    if($song =~ /$search/i) {
-      print '> ', $song->title, "\n";
-      push(@found, $song->pos);
+
+  for(@playlist) {
+    if($_ =~ /$search/i) {
+      print '> ' . $_->title . "\n";
+      push(@found, $_->pos);
     }
   }
-  &queue(@found);
+  queue(@found);
 }
 
 sub search_db {
-  my $search = shift; 
-  my @collection = $mpd->collection->all_pathes;
+  my $search = shift;
 
-  foreach my $song(@collection) {
-    if($song =~ /$search/i) {
-      printf("> %.77s\n", $song); 
-      $mpd->playlist->add($song);
+  for($mpd->collection->all_pathes) {
+    if($_ =~ /$search/i) {
+      printf("> %.77s\n", $_);
+      $mpd->playlist->add($_);
     }
   }
   $mpd->play;
-  exit 0;
 }
 
 sub search_album {
   my $search = shift;
-  my @tracks = $mpd->collection->songs_from_album_partial($search); 
+  my @tracks = $mpd->collection->songs_from_album_partial($search);
   if(!@tracks) {
     print ">> $c[2]$search$c[9]: no tracks found\n";
     exit 1;
   }
-  my @files;
-  foreach my $track(@tracks) {
-    push(@files, $track->file);
-  }
-  pipe_add(@files);
-  print ">> ", "\e[1m$c[6]", scalar(@files), "\e[0m",
-        " tracks found matching \e[1m$c[10]$search\e[0m$c[9] in the \e[1malbum\e[0m tag\n";
+  @tracks = map { $_ = $_->file } @tracks;
+  pipe_add(@tracks);
+
+  printf(">> $c[6]\e[1m%d\e[0m \e[1malbum\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+    scalar(@tracks), $search);
 }
 
 sub search_artist {
@@ -755,14 +785,11 @@ sub search_artist {
     print ">> $c[2]$search$c[9]: nothing found\n";
     exit 1;
   }
-  my @files;
-  foreach my $artist(@artists) {
-    print $artist->file,"\n";
-    push(@files, $artist->file);
-  }
-  pipe_add(@files);
-  print ">> ", "\e[1m$c[6]\e[0m", scalar(@artists), "\e[0m",
-        " tracks found by artist(s) matching \e[1m$c[10]$search\e[0m$c[9]\n";
+  @artists = map { $_ = $_->file } @artists;
+  pipe_add(@artists);
+
+  printf(">> $c[6]\e[1m%d\e[0m \e[1martist\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+    scalar(@artists), $search);
 }
 
 sub search_title  {
@@ -772,13 +799,11 @@ sub search_title  {
     print ">> $c[2]$search$c[9]: nothing found\n";
     exit 1;
   }
-  my @files;
-  foreach my $song(@songs) {
-    push(@files, $song->file);
-  }
-  pipe_add(@files);
-  print ">> ", "\e[1m$c[6]", scalar(@songs), "\e[0m",
-        " titles found matching $c[10]$search $c[9]\n";
+  @songs = map { $_ = $_->file } @songs;
+  pipe_add(@songs);
+
+  printf(">> $c[6]\e[1m%d\e[0m \e[1martist\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+    scalar(@songs), $search);
 }
 
 sub pipe_add {
@@ -883,6 +908,7 @@ sub help {
           --pass          remote MPD password (C)
           --ssh-host      remote SSH server host (used for -cp) (C)
           --ssh-port      remote SSH server port (used for -cp) (C)
+          --ssh-user      remote SSH server user (used for -cp) (C)
 
   -h,     --help          show the help and exit
           --man           show the manpage and exit
