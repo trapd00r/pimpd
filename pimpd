@@ -131,6 +131,7 @@ GetOptions(
   'ssh_user'           => \$ssh_user,
 
   'kill'               => \&killkid,
+  'mpd-kill'           => sub { $mpd->kill ;},
   'debug'              => \$DEBUG,
   'h|help'             => \&help,
   'man'                => sub { pod2usage(verbose => 3) },
@@ -907,6 +908,7 @@ sub help {
   -set,   --search-title  search the database for title and add the results to
                           the current playlist
   -no,    --no-color      turn colors off (C)
+          --mpd-kill      shut down the MPD server
           --host          remote MPD host (C)
           --port          remote MPD port (C)
           --pass          remote MPD password (C)
