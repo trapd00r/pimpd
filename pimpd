@@ -83,7 +83,7 @@ GetOptions(
   'm|monitor'          => \$opt_monitor,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
-  'shell'               => \$opt_shell,
+  'shell'              => \$opt_shell,
   'external=s{1,}'     => \@opt_list_external,
   'spl|search-pl=s'    => \$opt_search_playlist,
   'sdb|search-db=s'    => \$opt_search_db,
