@@ -382,6 +382,10 @@ sub playlist {
     $artist =~ s/(\w+)/\u\L$1/g;
     $i++;
 
+    if($title eq $mpd->current->title) {
+      $title = "\e[48;5;196m\e[1m$title\e[0m";
+    }
+
     my $bold = "\e[0m$c[9]";
     if($i % 2 == 0) {
       $bold = "\e[1m$c[13]";
@@ -819,15 +823,32 @@ sub pipe_add {
 
 sub current {
   my $cu = $mpd->current;
-  my($artist,$song,$album,$bitrate,$genre) = ($cu->artist,$cu->title,$cu->album,
-    $mpd->status->bitrate, $cu->genre);
+  my(
+    $artist,
+    $song,
+    $album,
+    $bitrate,
+    $genre,
+    $pos,
+  ) = (
+    $cu->artist,
+    $cu->title,
+    $cu->album,
+    $mpd->status->bitrate,
+    $cu->genre,
+    $cu->pos + 1,
+  );
 
   my $current = undef;
 
+  $bitrate = ($bitrate < 192)
+  ? ("$c[5]$bitrate\e[0m")
+  : ("$c[10]$bitrate\e[0m");
+
   if(!defined($artist) or(!defined($song))) {
     if(-t *STDOUT) { #output to terminal?
-      $current = sprintf("$c[1] >>$c[9] %s\033[1m%s\033[0m",
-        "$basedir/", $cu->file);
+      $current = sprintf("[\e[1m%d\e[0m]$c[1]>>$c[9] %s\e[1m%s\e[0m",
+        $pos, "$basedir/", $cu->file);
     }
     else {
       $current = sprintf(" >> %s %s",
@@ -836,12 +857,12 @@ sub current {
   }
   else {
     if(-t *STDOUT) { # FIXME make this a to-be-called function
-      $current = sprintf("$c[3] >>$c[9] %s - \033[1m%s\033[0m ",
-        $artist, $song) .
-          sprintf("from \033[1m%s\033[0m ($bitrate kbps) [$genre]", $album);
+      $current = sprintf("[\e[1m%d\e[0m]$c[3]>>$c[9] %s - \e[1m$c[3]%s\e[0m ",
+        $pos, $artist, $song)
+        . sprintf("from \e[1m$c[10]%s\e[0m ($bitrate kbps) [$genre]", $album);
     }
     else {
-      $current = sprintf(" >> %s - %s from %s (%s kbps) [%s]",
+      $current = sprintf(" [%d]>> %s - %s from %s (%s kbps) [%s]",
         $artist, $song, $album, $bitrate, $genre
       );
     }
