@@ -8,6 +8,8 @@
 
 # DESCRIPTION
 
+  ![pimpd screenshot](http://github.com/trapd00r/pimpd/raw/master/doc/screenshot.png "pimpd screenshot")
+
   pimpd is an MPD client written in Perl that implements regular expression
   based database/playlist queries, randomizing of playlists, queue
   functionality, interactive shell, monitoring (to STDOUT and daemonized),
