@@ -688,14 +688,18 @@ sub shell {
     'cl'        => sub { $mpd->playlist->clear },
     'cr'        => sub { $mpd->playlist->crop },
     'h'         => sub { shell_msg_help() },
-    ':q'        => sub { exit 0},
+    'exit'      => sub { exit(0) },
   };
 
   while(1) {
     print "$c[6]pimpd\e[1m>\e[0m\e[1m$c[0] ";
     chomp(my $choice = <STDIN>);
     print "\e[0m";
-    ($cmd, $arg) = split(/\s+/, $choice);
+    ($cmd) = $choice =~ m/^(\w+)/;
+    ($arg) = $choice =~ m/\s+(.+)$/;
+
+    print "cmd: $cmd\narg: $arg\n" if($DEBUG);
+
     defined($opts->{$cmd}) && $opts->{$cmd}->($arg);
   }
   exit(0);
