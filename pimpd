@@ -846,6 +846,7 @@ sub help {
   -m,     --monitor       monitor MPD for song changes (output on STDOUT)
   -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
                           output should go is specified in the configuration file.
+  -k,     --kill          kill pimpd when running in daemon mode
   -q,     --queue         queue specified tracks
   -e,     --external      list all tracks in external playlist
   -sh,    --shell         spawn the interactive pimpd shell
