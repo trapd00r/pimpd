@@ -100,6 +100,7 @@ GetOptions(
   'kill'               => \&killkid,
   'debug'              => \$DEBUG,
   'h|help'             => \&help,
+  'man'                => sub { pod2usage(verbose => 3) },
 );
 
 # ... we need to recreate the MPD object
@@ -647,6 +648,19 @@ sub shell {
     'mon'       => sub {
       monitor();
     },
+    'sar'       => sub {
+      print @_,"\n";
+     search_artist(@_);
+    },
+    'sal'       => sub {
+      search_album(@_);
+    },
+    'set'       => sub {
+      search_title(@_);
+    },
+    'sdb'       => sub {
+      search_db(@_);
+    },
     'spl'       => sub {
       search_playlist(@_);
     },
@@ -739,9 +753,10 @@ sub search_artist {
   }
   my @files;
   foreach my $artist(@artists) {
+    print $artist->file,"\n";
     push(@files, $artist->file);
   }
-  &pipe_add(@files);
+  #pipe_add(@files);
   print ">> ", "\e[1m$c[6]\e[0m", scalar(@artists), "\e[0m",
         " tracks found by artist(s) matching \e[1m$c[10]$search\e[0m$c[9]\n";
 }
@@ -757,7 +772,7 @@ sub search_title  {
   foreach my $song(@songs) {
     push(@files, $song->file);
   }
-  &pipe_add(@files);
+  pipe_add(@files);
   print ">> ", "\e[1m$c[6]", scalar(@songs), "\e[0m",
         " titles found matching $c[10]$search $c[9]\n";
 }
