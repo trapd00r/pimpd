@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.1';
+our $VERSION  = '1.6.2';
 our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
 use strict;
@@ -702,7 +702,7 @@ sub shell {
     'rand'    => sub {
       if(@_[0] !~ /^\d+$/) {
         print STDERR "@_[0] is not a valid integer\n";
-        exit(1);
+        @_[0] = 100;
       }
       print "Trying to add @_ random tracks to the playlist...\n";
       randomize(@_);
@@ -781,6 +781,7 @@ sub search_playlist {
   for(@playlist) {
     if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
+      # GNU Grep-like coloring
       print "${^PREMATCH}$c[6]\e[1m$1\e[0m$2\n";
     }
   }
