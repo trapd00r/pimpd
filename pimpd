@@ -402,9 +402,10 @@ sub playlist {
 }
 
 sub add_playlist {
+  my $clear_or_not = shift;
   if(@_) {
     my @playlists = @_;
-    $mpd->playlist->clear;
+    $mpd->playlist->clear if($clear_or_not > 0);
 
     for(@playlists) {
       $mpd->playlist->load($_);
@@ -419,7 +420,34 @@ sub add_playlist {
 sub list_external {
   my @playlists = @_;
 
+  my @known_playlists = $mpd->collection->all_playlists;
   for my $playlist(@playlists) {
+    if($playlist ~~ @known_playlists) {
+    }
+    else {
+      my @relevant = ();
+      my $i = 0;
+      for(@known_playlists) {
+        if($_ =~ /$playlist/i) {
+          push(@relevant, $_);
+          printf("\e[0m\e[1m%d\e[0m %s\n", $i, $_);
+          $i++;
+        }
+      }
+      if(scalar(@relevant) == 0) {
+        print STDERR "No such playlist\n";
+        exit(1);
+      }
+      print "choice: ";
+      chomp(my $choice = <STDIN>);
+      if($choice >= 0 && $choice <= scalar(@known_playlists)) {
+        $playlist = $relevant[$choice];
+      }
+      else {
+        print STDERR "$playlist does not exist!\n";
+        next;
+      }
+    }
     my $full_path = "$playlist_dir/$playlist\.m3u";
     if(defined($remote_host)) {
       # $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
@@ -685,7 +713,7 @@ sub queue {
     ) if(scalar(@to_play) != $argc);
 
     if(scalar(@to_play) == 1) {
-      exit(0);
+      # exit(0);
     }
     sleep($time);
   }
@@ -740,6 +768,9 @@ sub shell {
     },
     'e'         => sub {
       list_external(@_);
+    },
+    'add'       => sub {
+      add_playlist(0, @_); # Dont clear the current playlist
     },
 
     'n'         => sub { $mpd->next; print current() . "\n" },
@@ -955,7 +986,7 @@ sub help {
                           results
   -sdb,   --search-db     search the database for pattern and add the results to
                           the current playlist
-  -sar,   --search-artist search the database for artist and add the results to 
+  -sar,   --search-artist search the database for artist and add the results to
                           the current playlist
   -sal,   --search-album  search the database for album and add the result to
                           the current playlist
