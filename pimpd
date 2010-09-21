@@ -820,7 +820,13 @@ sub shell {
 
     print "cmd: $cmd\narg: $arg\n" if($DEBUG);
 
-    defined($opts->{$cmd}) && $opts->{$cmd}->($arg);
+    if(defined($opts->{$cmd})) {
+      $opts->{$cmd}->($arg);
+    }
+    else {
+      $opts->{h}->();
+      print STDERR "\e[1mNo such option $c[5]$cmd\e[0m\n";
+    }
   }
   exit(0);
 }
