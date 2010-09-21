@@ -911,7 +911,7 @@ sub search_title  {
   @songs = map { $_ = $_->file } @songs;
   pipe_add(@songs);
 
-  printf(">> $c[6]\e[1m%d\e[0m \e[1martist\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+  printf(">> $c[6]\e[1m%d\e[0m \e[1msong\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
     scalar(@songs), $search);
 }
 
