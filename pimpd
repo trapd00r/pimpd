@@ -803,8 +803,20 @@ sub shell {
 
     'np'        => sub { print current() . "\n"; },
     'q'         => sub { queue(@_); },
-    'ra'        => sub { $mpd->random; print $mpd->status->random . "\n"; },
-    're'        => sub { $mpd->repeat; print $mpd->status->repeat . "\n"; },
+    'ra'        => sub {
+      $mpd->random;
+      my $status =  ($mpd->status->random)
+        ? "Random: \e[1mOn\e[0m"
+        : "Random: \e[1mOff\e[0m";
+      print "$status\n";
+    },
+    're'        => sub {
+      $mpd->repeat;
+      my $status = ($mpd->status->repeat)
+        ? "Repeat: \e[1mOn\e[0m"
+        : "Repeat: \e[1mOff\e[0m";
+      print "$status\n";
+    },
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
     'h'         => sub { shell_msg_help(); },
