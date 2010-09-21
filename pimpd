@@ -213,6 +213,10 @@ if($mpd->status->playlistlength < 1) {
   );
 }
 
+if($mpd->status->state eq 'stop') {
+  $mpd->play;
+}
+
 print current(), "\n"                   if $opt_current;
 information()                           if $opt_information;
 playlist()                              if $opt_playlist;
