@@ -168,6 +168,7 @@ sub shell_msg_help {
     $APP $VERSION
     OPTIONS:
         rand  n    randomize a new playlist with n tracks
+        play  n    play track n in playlist
         add   s    add playlist s
         sdb   p    search the database for pattern
         sar   p    search for artists matching pattern
@@ -585,7 +586,7 @@ sub list_albums {
 }
 
 sub play_from_list {
-  my $choice = $ARGV[0];
+  my $choice = $ARGV[0] // shift;
   if(!$choice) {
     print STDERR "What should we play?\n";
     exit(1);
@@ -600,8 +601,7 @@ sub play_from_list {
     exit(1);
   }
   $mpd->play($choice-1);
-  print current();
-  exit(0);
+  print current(), "\n";
 }
 
 sub daemonize {
@@ -755,6 +755,13 @@ sub shell {
     },
     'fav'       => sub {
       favlist();
+    },
+    'play'      => sub {
+      if(@_[0] !~ /^\d+$/) {
+        print STDERR "@_[0] is not a valid integer\n";
+        @_[0] = 0;
+      }
+      play_from_list(@_);
     },
     'info'      => sub {
       information();
@@ -926,7 +933,7 @@ sub current {
 
   if(!defined($artist) or(!defined($song))) {
     if(-t *STDOUT) { #output to terminal?
-      $current = sprintf("[\e[1m%d\e[0m]$c[1]>>$c[9] %s\e[1m%s\e[0m",
+      $current = sprintf("[\e[1m$c[8]%d\e[0m]$c[1]>>$c[9] %s\e[1m%s\e[0m",
         $pos, "$basedir/", $cu->file);
     }
     else {
@@ -936,7 +943,7 @@ sub current {
   }
   else {
     if(-t *STDOUT) { # FIXME make this a to-be-called function
-      $current = sprintf("[\e[1m%d\e[0m]$c[3]>>$c[9] %s - \e[1m$c[3]%s\e[0m ",
+      $current = sprintf("[\e[1m$c[8]%d\e[0m]$c[3]>>$c[9] %s - \e[1m$c[3]%s\e[0m ",
         $pos, $artist, $song)
         . sprintf("from \e[1m$c[10]%s\e[0m ($bitrate kbps) [$genre]", $album);
     }
