@@ -766,7 +766,7 @@ sub shell {
         print STDERR "@_[0] is not a valid integer\n";
         @_[0] = 100;
       }
-      print "Trying to add @_ random tracks to the playlist...\n";
+      print "Adding \e[1m@_\e[0m random tracks to the playlist...\n";
       randomize(@_);
     },
 
