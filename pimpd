@@ -423,37 +423,52 @@ sub list_external {
   my @known_playlists = $mpd->collection->all_playlists;
   for my $playlist(@playlists) {
     if($playlist ~~ @known_playlists) {
+      # All good!
     }
     else {
       my @relevant = ();
-      my $i = 0;
+
+      #print "'\e[1m$c[5]$playlist\e[0m' does not exist. Did you mean\n";
       for(@known_playlists) {
         if($_ =~ /$playlist/i) {
           push(@relevant, $_);
-          printf("\e[0m\e[1m%d\e[0m %s\n", $i, $_);
-          $i++;
         }
       }
       if(scalar(@relevant) == 0) {
-        print STDERR "No such playlist\n";
+        print STDERR "No such playlist $playlist\n";
         exit(1);
       }
-      print "choice: ";
-      chomp(my $choice = <STDIN>);
-      if($choice >= 0 && $choice <= scalar(@known_playlists)) {
-        $playlist = $relevant[$choice];
+      elsif(scalar(@relevant) == 1) {
+        #NOTE Maybe we should inform what we're doing here.
+        #print STDERR "$playlist does not exist. However, a match was found:\n";
+        $playlist = $relevant[0];
       }
       else {
-        print STDERR "$playlist does not exist!\n";
-        next;
+        my $i = 0;
+
+        for(@relevant) {
+          printf("\e[1m% 2d\e[0m %s\n", $i, $_);
+          $i++;
+        }
+        print "choice: ";
+        chomp(my $choice = <STDIN>);
+
+        # Just in case Ulla User changed her mind
+        if($choice ~~ @known_playlists) {
+          $playlist = $choice;
+        }
+        elsif($choice >= 0 && $choice <= scalar(@known_playlists)) {
+          $playlist = $relevant[$choice];
+        }
       }
     }
     my $full_path = "$playlist_dir/$playlist\.m3u";
+
     if(defined($remote_host)) {
-      # $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+      #$full_path =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
       open(
         my $fh,
-        "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat $full_path\"|"
+        "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|"
       ) or die("$ssh_host:$ssh_port: $!");
 
       while(<$fh>) {
