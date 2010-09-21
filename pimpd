@@ -179,6 +179,7 @@ sub shell_msg_help {
         list  NIL  show the current playlist
         info  NIL  show now playing information
         np    NIL  show the currently playing track
+        cp    NIL  copy the currently playing track to specifed location
         n     NIL  next track
         p     NIL  previous track
         s     NIL  shuffle the playlist
@@ -406,14 +407,20 @@ sub add_playlist {
   my $clear_or_not = shift;
   if(@_) {
     my @playlists = @_;
+    my @valid_playlists = $mpd->collection->all_playlists;
     $mpd->playlist->clear if($clear_or_not > 0);
 
     for(@playlists) {
-      $mpd->playlist->load($_);
+      if($_ ~~ @valid_playlists) {
+        $mpd->playlist->load($_);
+      }
+      else {
+        print STDERR "\e[1m$_\e[0m does not exist\n";
+        return(1);
+      }
     }
 
-    print ">> Adding...\n";
-    print "> $_\n" for(@playlists);
+    print "Adding \e[1m$_\e[0m\n" for(@playlists);
     $mpd->play;
   }
 }
@@ -436,8 +443,8 @@ sub list_external {
         }
       }
       if(scalar(@relevant) == 0) {
-        print STDERR "No such playlist $playlist\n";
-        exit(1);
+        print STDERR "No such playlist $c[5]$playlist\e[0m\n";
+        return(1);
       }
       elsif(scalar(@relevant) == 1) {
         #NOTE Maybe we should inform what we're doing here.
@@ -448,7 +455,7 @@ sub list_external {
         my $i = 0;
 
         for(@relevant) {
-          printf("\e[1m% 2d\e[0m %s\n", $i, $_);
+          printf("\e[1m%3d\e[0m %s\n", $i, $_);
           $i++;
         }
         print "choice: ";
@@ -510,7 +517,7 @@ sub cp {
       }
       else {
         print STDERR "Could not remove $dir: $!\n";
-        exit(1);
+        return(1);
       }
     }
   }
@@ -520,7 +527,7 @@ sub cp {
     }
     else {
       print STDERR "Could not create $dir: $!\n";
-      exit(1);
+      return(1);
     }
   }
   chomp(my $file = $mpd->current->file);
@@ -538,7 +545,7 @@ sub cp {
   else {
     print STDERR "cp: $!\n";
   }
-  exit(0);
+  return(0);
 }
 
 sub favlist {
@@ -591,14 +598,14 @@ sub play_from_list {
     print STDERR "What should we play?\n";
     exit(1);
   }
+  #TODO Might wanna start playback if !args
   if($choice !~ /^\d+$/) {
     print STDERR "Integers only, please.\n";
-    exit(1);
   }
   if($choice > $mpd->status->playlistlength) {
     print STDERR "There are \e[1m" . $mpd->status->playlistlength
       . "\e[0m songs in the playlist. Pick one of them!\n";
-    exit(1);
+      return(1);
   }
   $mpd->play($choice-1);
   print current(), "\n";
@@ -750,69 +757,45 @@ sub shell {
       randomize(@_);
     },
 
-    'list'      => sub {
-      playlist();
-    },
-    'fav'       => sub {
-      favlist();
-    },
+    'list'      => sub { playlist(); },
+    'fav'       => sub { favlist(); },
     'play'      => sub {
-      if(@_[0] !~ /^\d+$/) {
-        print STDERR "@_[0] is not a valid integer\n";
-        @_[0] = 0;
-      }
+      @_[0] = 1 if @_[0] !~ /^\d+$/;
       play_from_list(@_);
     },
-    'info'      => sub {
-      information();
-    },
-    'mon'       => sub {
-      monitor();
-    },
+    'cp'        => sub { cp(); },
+    'info'      => sub { information(); },
+    'mon'       => sub { monitor(); },
     'sar'       => sub {
       print @_,"\n";
      search_artist(@_);
     },
-    'sal'       => sub {
-      search_album(@_);
-    },
-    'set'       => sub {
-      search_title(@_);
-    },
-    'sdb'       => sub {
-      search_db(@_);
-    },
-    'spl'       => sub {
-      search_playlist(@_);
-    },
-    'l'         => sub {
-      list_albums();
-    },
-    'e'         => sub {
-      list_external(@_);
-    },
+    'sal'       => sub { search_album(@_); },
+    'set'       => sub { search_title(@_); },
+    'sdb'       => sub { search_db(@_); },
+    'spl'       => sub { search_playlist(@_); },
+    'l'         => sub { list_albums(); },
+    'e'         => sub { list_external(@_); },
     'add'       => sub {
       add_playlist(0, @_); # Dont clear the current playlist
     },
 
-    'n'         => sub { $mpd->next; print current() . "\n" },
-    'p'         => sub { $mpd->prev; print current() . "\n" },
-    't'         => sub { $mpd->pause; print $mpd->status->state . "\n" },
+    'n'         => sub { $mpd->next; print current() . "\n"; },
+    'p'         => sub { $mpd->prev; print current() . "\n"; },
+    't'         => sub { $mpd->pause; print $mpd->status->state . "\n"; },
     's'         => sub {
       $mpd->playlist->shuffle;
       print "New playlist version is " .$mpd->status->playlist . "\n"
     },
 
-    'np'        => sub {
-      print current() . "\n"
-    },
-    'q'         => sub { queue(@_) },
-    'ra'        => sub { $mpd->random; print $mpd->status->random . "\n" },
-    're'        => sub { $mpd->repeat; print $mpd->status->repeat . "\n" },
-    'cl'        => sub { $mpd->playlist->clear },
-    'cr'        => sub { $mpd->playlist->crop },
-    'h'         => sub { shell_msg_help() },
-    'exit'      => sub { exit(0) },
+    'np'        => sub { print current() . "\n"; },
+    'q'         => sub { queue(@_); },
+    'ra'        => sub { $mpd->random; print $mpd->status->random . "\n"; },
+    're'        => sub { $mpd->repeat; print $mpd->status->repeat . "\n"; },
+    'cl'        => sub { $mpd->playlist->clear; },
+    'cr'        => sub { $mpd->playlist->crop; },
+    'h'         => sub { shell_msg_help(); },
+    'exit'      => sub { exit(0); },
   };
 
   while(1) {
