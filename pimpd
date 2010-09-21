@@ -380,25 +380,34 @@ sub playlist {
     my $album  = $song->album  // 'undef';
     my $artist = $song->artist // 'undef';
 
-# titlecase
-    $title  =~ s/(\w+)/\u\L$1/g;
-    $album  =~ s/(\w+)/\u\L$1/g;
-    $artist =~ s/(\w+)/\u\L$1/g;
     $i++;
 
     my $w = "\e[0m$c[9]";
     if($i % 2 == 0) {
       $w = "\e[1m$c[13]";
     }
+    
+    my $crnt_title  = $mpd->current->title;
+    my $crnt_artist = $mpd->current->artist;
+    $title       =~ s/(\w+)/\u\L$1/g;
+    $album       =~ s/(\w+)/\u\L$1/g;
+    $artist      =~ s/(\w+)/\u\L$1/g;
+    $crnt_title  =~ s/(\w+)/\u\L$1/g;
+    $crnt_artist =~ s/(\w+)/\u\L$1/g;
 
-    if($title eq $mpd->current->title && $artist eq $mpd->current->artist) {
-      $title = "$c[5]\e[1m$title\e[0m";
-      $w = "\e[1m$c[5]";
+    if($title eq $crnt_title
+      && $artist eq $crnt_artist
+      && $mpd->current->pos == ($i-1)
+    ) {
+      $w = "\e[1m$c[3]";
+      printf("$w%4d\e[0m $w$c[12]%25.25s$c[12]▕$w$c[11]|$c[12]▏$w$c[3]%-47.47s\e[0m\n",
+        $i, $artist, $title);
     }
+    else {
+      printf("$w%4d\e[0m $w$c[8]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[6]%-47.47s\e[0m\n",
+        $i, $artist, $title);
+      }
 
-    printf("$w% 3d\e[0m $w$c[8]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[6]%-47.47s\e[0m\n",
-      $i, $artist, $title
-    );
   }
   print "\n" . current('show'), "\n";
 }
@@ -707,7 +716,7 @@ sub queue {
   my @to_play = @_;
   if(scalar(@to_play < 1)) {
     print STDERR "The queue function requires at least one song \n";
-    exit(1);
+    return(1);
   }
 
   # The playlist numbering starts with 1
@@ -735,7 +744,7 @@ sub queue {
     ) if(scalar(@to_play) != $argc);
 
     if(scalar(@to_play) == 1) {
-      # exit(0);
+      return(0);
     }
     sleep($time);
   }
@@ -825,7 +834,7 @@ sub search_playlist {
   }
   if(scalar(@found) < 1) {
     print "No match on \e[1m$search\e[0m in the current playlist\n";
-    exit(0);
+    return(1);
   }
   queue(@found);
 }
@@ -847,7 +856,7 @@ sub search_album {
   my @tracks = $mpd->collection->songs_from_album_partial($search);
   if(!@tracks) {
     print ">> $c[2]$search$c[9]: no tracks found\n";
-    exit 1;
+    return(1);
   }
   @tracks = map { $_ = $_->file } @tracks;
   pipe_add(@tracks);
@@ -861,7 +870,7 @@ sub search_artist {
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
     print ">> $c[2]$search$c[9]: nothing found\n";
-    exit 1;
+    return(1);
   }
   @artists = map { $_ = $_->file } @artists;
   pipe_add(@artists);
@@ -875,7 +884,7 @@ sub search_title  {
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
     print ">> $c[2]$search$c[9]: nothing found\n";
-    exit 1;
+    return(1);
   }
   @songs = map { $_ = $_->file } @songs;
   pipe_add(@songs);
