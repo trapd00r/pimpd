@@ -305,13 +305,13 @@ sub information {
     $status{volume} = 'N/A (Software Mixer)';
   }
 
-  printf("$e;251m\e[1mS\e[0m%10s$c[0]\e[1m %.66s\e[0m \n",
+  printf("$e;251m\e[1mS\e[0m%10s$c[6]\e[1m %.66s\e[0m \n",
     'Artist:', $current{artist});
 
-  printf("$e;250mO\e[0m%10s$c[1] %.66s\e[0m \n",
+  printf("$e;250mO\e[0m%10s$c[8] %.66s\e[0m \n",
     'Album:' , $current{album});
 
-  printf("$e;249mN\e[0m%10s$c[8]\e[1m %.66s \n",
+  printf("$e;249mN\e[0m%10s$c[7]\e[1m %.66s \n",
     'Song:'  , $current{title});
 
   printf("$e;248mG\e[0m%10s %.66s \n",
