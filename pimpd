@@ -833,6 +833,7 @@ sub shell {
     print "cmd: $cmd\narg: $arg\n" if($DEBUG);
 
     if(defined($opts->{$cmd})) {
+      $mpd->play;
       $opts->{$cmd}->($arg);
     }
     else {
