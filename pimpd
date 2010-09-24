@@ -963,7 +963,7 @@ sub current {
     }
     else {
       $current = sprintf(" [%d]>> %s - %s from %s (%s kbps) [%s]",
-        $artist, $song, $album, $bitrate, $genre
+        $pos, $artist, $song, $album, $bitrate, $genre
       );
     }
   }
