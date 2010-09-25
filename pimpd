@@ -77,6 +77,7 @@ our(
   $opt_list_albums,
   $opt_current,
   $opt_run_cp,
+  $opt_cp_list,
 
   # So we could override configured settings on the commandline
   $opt_remote_host,
@@ -103,6 +104,7 @@ GetOptions(
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
+  'cpl|cp-list:s'      => \$opt_cp_list,
   'f|favorite'         => \$opt_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
@@ -180,6 +182,7 @@ sub shell_msg_help {
         info  NIL  show now playing information
         np    NIL  show the currently playing track
         cp    NIL  copy the currently playing track to specifed location
+        cpl   s    copy the content of playlist s to specifed location
         n     NIL  next track
         p     NIL  previous track
         s     NIL  shuffle the playlist
@@ -247,6 +250,7 @@ search_db($opt_search_db)               if $opt_search_db;
 search_album($opt_search_album)         if $opt_search_album;
 search_artist($opt_search_artist)       if $opt_search_artist;
 search_title($opt_search_title)         if $opt_search_title;
+cp_list($opt_cp_list)                   if $opt_cp_list;
 
 sub onoff {
   my $what = shift;
@@ -448,7 +452,6 @@ sub list_external {
     else {
       my @relevant = ();
 
-      #print "'\e[1m$c[5]$playlist\e[0m' does not exist. Did you mean\n";
       for(@known_playlists) {
         if($_ =~ /$playlist/i) {
           push(@relevant, $_);
@@ -514,31 +517,31 @@ sub scp {
 }
 
 sub cp {
-  my $dir = $portable;
-  if(-e $dir && ! -d $dir) {
-    print STDERR "$dir exists, but is \e[1mNOT\e[0m a directory!\n";
-    print STDERR "Delete and \e[1mmkdir\e[0m $dir? [y/N]: ";
+  my $dest = $portable;
+  if(-e $dest && ! -d $dest) {
+    print STDERR "$dest exists, but is \e[1mNOT\e[0m a directory!\n";
+    print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
 
     chomp(my $choice = <STDIN>);
     if(lc($choice) ne 'y' && !defined($choice)) { # better be explicit
       print STDERR "Bailing out.\n";
     }
     else {
-      if(unlink($dir)) {
-        print "$dir removed successfully\n";
+      if(unlink($dest)) {
+        print "$dest removed successfully\n";
       }
       else {
-        print STDERR "Could not remove $dir: $!\n";
+        print STDERR "Could not remove $dest: $!\n";
         return(1);
       }
     }
   }
-  if(! -d $dir) {
-    if(make_path("$dir", 1, 0777)) {
-      print "$dir \e[1mcreated\e[0m\n";
+  if(! -d $dest) {
+    if(make_path("$dest", 1, 0777)) {
+      print "$dest \e[1mcreated\e[0m\n";
     }
     else {
-      print STDERR "Could not create $dir: $!\n";
+      print STDERR "Could not create $dest: $!\n";
       return(1);
     }
   }
@@ -548,14 +551,91 @@ sub cp {
   $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
   if(defined($remote_host)) {
-    return scp($ssh_host, $ssh_port, "$basedir/$file", $dir)
+    return scp($ssh_host, $ssh_port, "$basedir/$file", $dest)
   }
 
-  if(copy("$basedir/$file", $dir)) {
-    print "$file => $dir\n";
+  if(copy("$basedir/$file", $dest)) {
+    print "$file => $dest\n";
   }
   else {
     print STDERR "cp: $!\n";
+  }
+  return(0);
+}
+
+sub cp_list {
+  my $list = shift;
+  my $dest = shift // $portable;
+
+  return(1) if(!$list);
+
+  my @known_playlists = $mpd->collection->all_playlists;
+  if($list ~~ @known_playlists) {
+    # All fine
+  }
+  else {
+    my @choices = ();
+
+    for(@known_playlists) {
+      if($_ =~ /$list/i) {
+        push(@choices, $_);
+      }
+    }
+    if(scalar(@choices) == 0) {
+      print STDERR "No such playlist $c[5]$list\e[0m\n";
+      return(1);
+    }
+
+    my $i = 0;
+    for(@choices) {
+      printf("\e[1m%3d\e[0m %s\n", $i, $_);
+      $i++;
+    }
+    print "choice: ";
+    chomp(my $choice = <STDIN>);
+
+    if($choice ~~ @known_playlists) {
+      $list = $choice;
+    }
+    elsif($choice >= 0 && $choice <= scalar(@known_playlists)) {
+      $list = $choices[$choice];
+    }
+  }
+  my @files = ();
+
+  my $full_path = "$playlist_dir/$list\.m3u";
+
+  if(defined($remote_host)) {
+    open(
+      my $fh,
+      "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|"
+      ) or die("cp_list: $ssh_host:$ssh_port: $!");
+
+    chomp(@files = <$fh>);
+    close($fh);
+  }
+  else {
+    open(my $fh, '<', $full_path) or die("Can not open $full_path: $!");
+    chomp(@files = <$fh>);
+    close($fh);
+  }
+
+  for my $file(@files) {
+    if(defined($remote_host)) {
+      my $full = "$basedir/$file";
+      $full =~ s/([ä;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+      scp($ssh_host, $ssh_port, "$full", $dest);
+    }
+    else {
+      my $full = "$basedir/$file";
+      if(copy("$full", $dest)) {
+        print "$full => $dest\n";
+      }
+      else {
+        print STDERR "cp_list: $!\n";
+        return(1);
+      }
+    }
   }
   return(0);
 }
@@ -1004,6 +1084,8 @@ sub help {
   -np,    --current       print now playing information on single line
   -r,     --random        randomize a new playlist with n tracks
   -cp,    --copy          copy the current track to specified location (C)
+  -cpl,   --cp-list       copy the content of specified playlist to specifed
+                          location
   -f,     --fav           favorize the current track. If no name for the playlist
                           is specified, the GENRE id3-tag is used
   -l,     --listalbums    list all albums by artist
