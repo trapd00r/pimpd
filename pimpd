@@ -583,11 +583,26 @@ sub cp_album {
   } if($DEBUG);
 
   print "$c[13]\e[1m$albname\e[0m\e[1m => \e[0m$c[3]$dest\e[0m\n";
-  if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
-    print "\nTransfer of \e[1m$albname\e[0m done\n";
+
+  if(defined($remote_host)) {
+    if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
+      print "\nTransfer of \e[1m$albname\e[0m done\n";
+    }
+    else {
+      print STDERR "$!\n";
+    }
   }
   else {
-    print STDERR "$!\n";
+    for(glob("$album/*")) {
+      my ($basename) = $_ =~ m;.+/(.+)$;;
+      if(copy($_, $dest)) {
+        printf("\e[1m%50.50s\e[0m => %s\n", $basename, $dest);
+      }
+      else {
+        print STDERR "$_: $!\n";
+        return(1);
+      }
+    }
   }
   return(0);
 }
