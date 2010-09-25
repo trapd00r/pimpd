@@ -689,7 +689,7 @@ sub favlist {
 
     printf("$c[1]%s\e[0m\e[1m >> $ssh_host:$c[3]%s\e[0m\n",
       $filepath, "$fullpath.m3u");
-    exit(0);
+    return(0);
   }
   open(my $fh, '>>', "$fullpath.m3u")
     or croak("Could not open $fullpath.m3u: $!");
