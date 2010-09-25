@@ -1158,6 +1158,7 @@ regular functionality one would expect.
   There are two options that will yeild some info on the current track:
 
   -i   print all information available.
+
   -np  print information on the currently playing track only, on a single line.
 
 =item Colors
