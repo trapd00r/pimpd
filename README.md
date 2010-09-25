@@ -32,11 +32,11 @@ regular functionality one would expect.
   to listen to the music locally, or if you want to transfer some music to your
   portable music player.
 
-  -cp  simply copies the currently playing track to the specifed location.
+    -cp  simply copies the currently playing track to the specifed location.
 
-  -cpa copies the full album where the currently playing track is featured.
+    -cpa copies the full album where the currently playing track is featured.
 
-  -cpl copies all tracks in the specified playlist to the specified location.
+    -cpl copies all tracks in the specified playlist to the specified location.
 
 - Interactive shell
 
@@ -47,19 +47,21 @@ regular functionality one would expect.
 
   There are two ways to monitor song changes:
 
-  -m  simply print song changes to stdout.
+    -m  simply print song changes to stdout.
 
-  -md monitor in daemon mode. This is useful for things like OSD notifications,
-      integration in dzen2 and so on. Most window managers uses their own sort
-      of notification functionality which can also be used.
+    -md monitor in daemon mode.
+
+  This is useful for things like OSD notifications, integration in dzen2 / conky
+  and so on. Most window managers uses their own sort of notification
+  functionality which can also be used.
 
 - Now playing
 
   There are two options that will yeild some info on the current track:
 
-  -i   print all information available.
+    -i   print all information available.
 
-  -np  print information on the currently playing track only, on a single line.
+    -np  print information on the currently playing track only, on a single line.
 
 - Colors
 
