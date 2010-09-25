@@ -587,7 +587,13 @@ sub cp_album {
     print "ALBNAME: $albname\n";
   } if($DEBUG);
 
-  scp($ssh_host, $ssh_port, $album, $dest);
+  print "$c[13]\e[1m$albname\e[0m\e[1m => \e[0m$c[3]$dest\e[0m\n";
+  if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
+    print "\nTransfer of \e[1m$albname\e[0m done\n";
+  }
+  else {
+    print STDERR "$!\n";
+  }
   return(0);
 }
 
@@ -595,13 +601,13 @@ sub cp_list {
   my $list = shift;
   my $dest = shift // $portable;
 
-  return(1) if(!$list);
-
   my @known_playlists = $mpd->collection->all_playlists;
   if($list ~~ @known_playlists) {
     # All fine
   }
   else {
+    # If $list is undef, we let it fall through here anyway, so we can pick and
+    # choose from the array of existing playlists
     my @choices = ();
 
     for(@known_playlists) {
@@ -646,6 +652,11 @@ sub cp_list {
     open(my $fh, '<', $full_path) or die("Can not open $full_path: $!");
     chomp(@files = <$fh>);
     close($fh);
+  }
+
+  if(scalar(@files) == 0) {
+    print STDERR "There are no files in $list!\n";
+    return(1);
   }
 
   for my $file(@files) {
@@ -884,6 +895,8 @@ sub shell {
       play_from_list(@_);
     },
     'cp'        => sub { cp(); },
+    'cpa'       => sub { cp_album(); },
+    'cpl'       => sub { cp_list(@_); },
     'info'      => sub { information(); },
     'mon'       => sub { monitor(); },
     'sar'       => sub {
