@@ -382,12 +382,12 @@ sub playlist {
   $header = "Playlist:\n" if($header eq 'show');
 
   my @playlist = $mpd->playlist->as_items;
-  my $i        = 0;
 
   print $header;
+
+  my $i = 0;
   for my $song(@playlist) {
     my $title  = $song->title  // 'undef';
-    my $album  = $song->album  // 'undef';
     my $artist = $song->artist // 'undef';
 
     $i++;
@@ -397,27 +397,22 @@ sub playlist {
       $w = "$c[8]\e[0m";
     }
 
-    my $crnt_title  = $mpd->current->title;
-    my $crnt_artist = $mpd->current->artist;
+    my $crnt_title  = $mpd->current->title // undef;
+    my $crnt_artist = $mpd->current->artist // undef;
     $title       =~ s/(\w+)/\u\L$1/g;
-    $album       =~ s/(\w+)/\u\L$1/g;
     $artist      =~ s/(\w+)/\u\L$1/g;
     $crnt_title  =~ s/(\w+)/\u\L$1/g;
     $crnt_artist =~ s/(\w+)/\u\L$1/g;
 
-    if($title eq $crnt_title
-      && $artist eq $crnt_artist
-      && $mpd->current->pos == ($i-1)
-    ) {
+    if($mpd->current->pos == ($i - 1)) {
       $w = "\e[1m$c[4]";
       printf("$w%4d\e[0m $w$c[4]%25.25s$c[8]▕$w$c[4]·$c[8]▏$w$c[4]%-47.47s\e[0m\n",
         $i, $artist, $title);
     }
     else {
-      printf("$w%4d\e[0m $w$c[11]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[13]%-47.47s\e[0m\n",
+      printf("$w%4d\e[0m $w$c[13]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[11]%-47.47s\e[0m\n",
         $i, $artist, $title);
-      }
-
+    }
   }
   print "\n" . current('show'), "\n";
 }
@@ -963,16 +958,33 @@ sub shell {
   }
   exit(0);
 }
+
+sub invalid_re {
+  my $re = shift;
+  eval { qr/$re/ };
+  if($@) {
+    return(1);
+  }
+  else {
+    return(0);
+  }
+}
+
 sub search_playlist {
   my $search   = shift;
   my @playlist = $mpd->playlist->as_items;
   my @found;
 
+  if(invalid_re($search)) {
+    print STDERR "'$search' is not valid regex. See 'perldoc perlretut'\n";
+    return(1);
+  }
+
   for(@playlist) {
     if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
       # GNU Grep-like coloring
-      print "${^PREMATCH}$c[6]\e[1m$1\e[0m$2\n";
+      print "${^PREMATCH}$c[2]\e[1m$1\e[0m$2\n";
     }
   }
   if(scalar(@found) < 1) {
@@ -985,6 +997,11 @@ sub search_playlist {
 sub search_db {
   my $search = shift;
 
+  if(invalid_re($search)) {
+    print STDERR "'$search' is not valid regex. See 'perldoc perlretut'\n";
+    return(1);
+  }
+
   for($mpd->collection->all_pathes) {
     if($_ =~ /$search/i) {
       printf("> %.77s\n", $_);
@@ -996,6 +1013,7 @@ sub search_db {
 
 sub search_album {
   my $search = shift;
+
   my @tracks = $mpd->collection->songs_from_album_partial($search);
   if(!@tracks) {
     print ">> $c[2]$search$c[9]: no tracks found\n";
