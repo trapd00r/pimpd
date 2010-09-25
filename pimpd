@@ -962,8 +962,8 @@ sub current {
         . sprintf("from \e[1m$c[10]%s\e[0m ($bitrate kbps) [$genre]", $album);
     }
     else {
-      $current = sprintf(" [%d]>> %s - %s from %s (%s kbps) [%s]",
-        $pos, $artist, $song, $album, $bitrate, $genre
+      $current = sprintf(" [%d]>> %s - %s from %s [%s]",
+        $pos, $artist, $song, $album, $genre
       );
     }
   }
