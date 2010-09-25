@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.2';
+our $VERSION  = '1.6.3';
 our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
 use strict;
@@ -78,6 +78,7 @@ our(
   $opt_current,
   $opt_run_cp,
   $opt_cp_list,
+  $opt_cp_album,
 
   # So we could override configured settings on the commandline
   $opt_remote_host,
@@ -105,6 +106,7 @@ GetOptions(
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
   'cpl|cp-list:s'      => \$opt_cp_list,
+  'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
@@ -251,6 +253,7 @@ search_album($opt_search_album)         if $opt_search_album;
 search_artist($opt_search_artist)       if $opt_search_artist;
 search_title($opt_search_title)         if $opt_search_title;
 cp_list($opt_cp_list)                   if $opt_cp_list;
+cp_album()                              if $opt_cp_album;
 
 sub onoff {
   my $what = shift;
@@ -393,7 +396,7 @@ sub playlist {
     if($i % 2 == 0) {
       $w = "$c[8]\e[0m";
     }
-    
+
     my $crnt_title  = $mpd->current->title;
     my $crnt_artist = $mpd->current->artist;
     $title       =~ s/(\w+)/\u\L$1/g;
@@ -512,12 +515,12 @@ sub scp {
 
   $src  =~ s/([ '"&;|])/\\$1/g;
   $dest =~ s/([ '"&;|])/\\$1/g;
-  system('scp', "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
+  system('scp', '-r',  "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
   return(0);
 }
 
 sub cp {
-  my $dest = $portable;
+  my $dest = shift // $portable;
   if(-e $dest && ! -d $dest) {
     print STDERR "$dest exists, but is \e[1mNOT\e[0m a directory!\n";
     print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
@@ -560,6 +563,31 @@ sub cp {
   else {
     print STDERR "cp: $!\n";
   }
+  return(0);
+}
+
+sub cp_album {
+  my $dest = shift // $portable;
+
+  my $file  = $mpd->current->file;
+  return(1) if(!$file);
+
+  my $path  = "$basedir/$file";
+  my($basename) = $path  =~ m;.+/(.+)$;;
+  my($album)    = $path  =~ m;(.+)/.+$;;
+  my($albname)  = $album =~ m;.+/(.+)$;;
+
+  $basename =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  $album    =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+
+  do {
+    print "PATH: $path\n";
+    print "BASENAME: $basename\n";
+    print "ALBUM: $album\n";
+    print "ALBNAME: $albname\n";
+  } if($DEBUG);
+
+  scp($ssh_host, $ssh_port, $album, $dest);
   return(0);
 }
 
@@ -1069,12 +1097,61 @@ sub help {
 
 =head1 DESCRIPTION
 
-  pimpd is an MPD client written in Perl that implements regular expression
-  based database/playlist queries, randomizing of playlists, queue
-  functionality, interactive shell, monitoring (to STDOUT and daemonized),
-  ability to copy the currently playing song to your portable player, favorizing
-  of specific tracks, loads of information spamming, support for colorschemes
-  and 256 colors, and quite a bit more. See OPTIONS for a full specification.
+pimpd is an MPD client written in Perl that aims to implement what the
+excellent mpc client is lacking (for good reasons), as well as all the
+regular functionality one would expect.
+
+=item Regular expression based queries
+
+  You can search the database and playlist using regular expressions. There are
+  several other (faster) ways to search as well - by artist, album or title.
+
+=item Randomizing
+
+  The 'I am lucky button' - add n randomly picked tracks to the current
+  playlist.
+
+=item Transfering of music
+
+  There are several ways of transfering music.
+
+  This is especially useful if the MPD server is running elsewhere and you want
+  to listen to the music locally, or if you want to transfer some music to your
+  portable music player.
+
+  -cp  simply copies the currently playing track to the specifed location.
+
+  -cpa copies the full album where the currently playing track is featured.
+
+  -cpl copies all tracks in the specified playlist to the specified location.
+
+=item Interactive shell
+
+  From the interactive shell one can access almost all functionality that's
+  available through regular option flags.
+
+=item Monitor song changes
+
+  There are two ways to monitor song changes:
+
+  -m  simply print song changes to stdout.
+
+  -md monitor in daemon mode. This is useful for things like OSD notifications,
+      integration in dzen2 and so on. Most window managers uses their own sort
+      of notification functionality which can also be used.
+
+=item Now playing
+
+  There are two options that will yeild some info on the current track:
+
+  -i   print all information available.
+  -np  print information on the currently playing track only, on a single line.
+
+=item Colors
+
+  pimpd does support colorschemes, which are defined and loaded from the
+  configuration file. 256 colors is supported, as well as no colors at all.
+
 
   All of this works on local MPD servers as well as remote ones.
 
@@ -1084,6 +1161,8 @@ sub help {
   -np,    --current       print now playing information on single line
   -r,     --random        randomize a new playlist with n tracks
   -cp,    --copy          copy the current track to specified location (C)
+  -cpa,   --cp-album      copy the whole album the current track is featured on
+                          to specified location
   -cpl,   --cp-list       copy the content of specified playlist to specifed
                           location
   -f,     --fav           favorize the current track. If no name for the playlist
@@ -1136,8 +1215,7 @@ Written by Magnus Woldrich
 Report bugs and feature requests at the issue tracker
 <http://github.com/trapd00r/pimpd/issues>
 
-Report your love and send virtual hugs to <trapd00r@trapd00r.se>
-If you need to send more then virtual hugs - contact me by the mail first.
+Girls can contact me at <trapd00r@trapd00r.se>
 
 =head1 COPYRIGHT
 
