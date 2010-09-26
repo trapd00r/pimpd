@@ -420,22 +420,50 @@ sub playlist {
 }
 
 sub add_playlist {
-  my $clear_or_not = shift;
+  my $clear_or_not = shift; # clear playlist?
   if(@_) {
     my @playlists = @_;
     my @valid_playlists = $mpd->collection->all_playlists;
     $mpd->playlist->clear if($clear_or_not > 0);
 
-    for(@playlists) {
-      if($_ ~~ @valid_playlists) {
-        $mpd->playlist->load($_);
+    for my $playlist(@playlists) {
+      if($playlist ~~ @valid_playlists) {
+        next;
       }
       else {
-        print STDERR "\e[1m$_\e[0m does not exist\n";
-        return(1);
+        my @relevant = ();
+        for(@valid_playlists) {
+          if($_ =~ /$playlist/i) {
+            push(@relevant, $_);
+          }
+        }
+        if(scalar(@relevant) == 0) {
+          print STDERR "Playlist \e[1m$c[5]$playlist\e[0m does not exist\n";
+          return(1);
+        }
+        elsif(scalar(@relevant) == 1) {
+          $playlist = $relevant[0];
+        }
+        else {
+          my $i = 0;
+
+          for(@relevant) {
+            printf("\e[1m%3d\e[0m %s\n", $i, $_);
+            $i++;
+          }
+          print "choice: ";
+          chomp(my $choice = <STDIN>);
+
+          if($choice ~~ @valid_playlists) {
+            $playlist = $choice;
+          }
+          elsif($choice >= 0 && $choice <= scalar(@valid_playlists)) {
+            $playlist = $relevant[$choice];
+          }
+        }
       }
     }
-
+    $mpd->playlist->load(@playlists);
     print "Adding \e[1m$_\e[0m\n" for(@playlists);
     $mpd->play;
   }
@@ -952,14 +980,14 @@ sub shell {
       information();
     },
 
-    'mon'       => sub { 
+    'mon'       => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty - there's nothing to monitor\n";
         return(1);
       }
       monitor();
     },
-    
+
     'sar'       => sub {
       my $artist = join(' ', @_);
       search_artist($artist);
@@ -992,7 +1020,7 @@ sub shell {
       }
       list_albums();
     },
-    
+
     'e'         => sub { list_external(@_); },
     'add'       => sub {
       add_playlist(0, @_); # Dont clear the current playlist
@@ -1095,6 +1123,11 @@ sub search_playlist {
     return(1);
   }
 
+  # NOTE Should we ignore dupes?
+  # All Saints = Pure Shores <=> All Saints - Pure Shores
+  # Or maybe compare by album as well. Crap could be live, remixes and what not,
+  # even though the title doesnt say so.
+  # Or maybe we should just let the user craft their regex good enough :)
   for(@playlist) {
     if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
