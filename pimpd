@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.3';
+our $VERSION  = '1.6.4';
 our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
 use strict;
@@ -10,11 +10,14 @@ use Audio::MPD;
 use List::Util qw(shuffle);
 use Pod::Usage;
 use Getopt::Long;
-use Data::Dumper;
 use File::Copy;
 use Carp;
 use Pod::Usage;
 use File::Path 'make_path';
+
+if($DEBUG) {
+  use Data::Dumper;
+}
 
 if(!@ARGV) {
   print "$APP $VERSION\n";
@@ -207,7 +210,7 @@ sub shell_msg_help {
 if($mpd->status->playlistlength < 1) {
 
   do {
-    shell_msg_help('Your playlist looks empty. Lets add some music');
+    shell();
   }
     unless($opt_randomize
       or $opt_search_db
@@ -215,6 +218,10 @@ if($mpd->status->playlistlength < 1) {
       or $opt_search_artist
       or $opt_search_title
       or @opt_add_playlist
+      or $opt_shell
+      or $opt_current
+      or @opt_list_external
+      or $opt_cp_list
   );
 }
 
@@ -242,7 +249,7 @@ if($opt_monitor_d) {
   }
 }
 randomize($opt_randomize)               if $opt_randomize;
-add_playlist(@opt_add_playlist)         if @opt_add_playlist;
+add_playlist(0, @opt_add_playlist)      if @opt_add_playlist;
 queue(@opt_queue)                       if @opt_queue;
 shell()                                 if $opt_shell;
 list_external(@opt_list_external)       if @opt_list_external;
@@ -255,11 +262,6 @@ search_title($opt_search_title)         if $opt_search_title;
 cp_list($opt_cp_list)                   if $opt_cp_list;
 cp_album()                              if $opt_cp_album;
 
-sub onoff {
-  my $what = shift;
-  $what = ($what) ? 'Yes' : 'No';
-  return($what);
-}
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
@@ -850,6 +852,12 @@ sub queue {
     print STDERR "The queue function requires at least one song \n";
     return(1);
   }
+  for(@to_play) {
+    if(invalid_pos($_)) {
+      print STDERR "$c[5]$_\e[0m: invalid position\n";
+      return(1);
+    }
+  }
 
   # The playlist numbering starts with 1
   # The internal numbering starts with 0
@@ -883,30 +891,6 @@ sub queue {
   print ">> Queue finished.\n";
 }
 
-sub playlist_is_empty {
-  if($mpd->playlist->as_items == 0) {
-    return(1);
-  }
-  else {
-    return(0);
-  }
-}
-
-sub invalid_pos {
-  my @pos = @_;
-  my @playlist = map { $_ = $_->pos } $mpd->playlist->as_items;
-  my $fail = 0;
-
-  for(@pos) {
-    if($_ ~~ @playlist) {
-      # all good
-    }
-    else {
-      $fail++;
-    }
-  }
-  return($fail);
-}
 sub shell {
   my $option = shift;
   my($cmd, $arg, @cmd_args); # for later use
@@ -922,26 +906,93 @@ sub shell {
       randomize(@_);
     },
 
-    'list'      => sub { playlist(); },
-    'fav'       => sub { favlist(); },
+    'list'      => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Playlist is empty\n";
+        return(1);
+      }
+      playlist();
+    },
+
+    'fav'       => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      favlist();
+    },
+
     'play'      => sub {
       @_[0] = 1 if @_[0] !~ /^\d+$/;
       play_from_list(@_);
     },
-    'cp'        => sub { cp(); },
-    'cpa'       => sub { cp_album(); },
-    'cpl'       => sub { cp_list(@_); },
-    'i'         => sub { information(); },
-    'mon'       => sub { monitor(); },
-    'sar'       => sub {
-      print @_,"\n";
-     search_artist(@_);
+
+    'cp'        => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      cp();
     },
-    'sal'       => sub { search_album(@_); },
-    'set'       => sub { search_title(@_); },
-    'sdb'       => sub { search_db(@_); },
-    'spl'       => sub { search_playlist(@_); },
-    'l'         => sub { list_albums(); },
+
+    'cpa'       => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      cp_album();
+    },
+
+    'cpl'       => sub { cp_list(@_); },
+    'i'         => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      information();
+    },
+
+    'mon'       => sub { 
+      if(playlist_is_empty()) {
+        print STDERR "Playlist is empty - there's nothing to monitor\n";
+        return(1);
+      }
+      monitor();
+    },
+    
+    'sar'       => sub {
+      my $artist = join(' ', @_);
+      search_artist($artist);
+    },
+
+    'sal'       => sub {
+      my $album = join(' ', @_);
+      search_album($album);
+    },
+
+    'set'       => sub {
+      my $title = join(' ', @_);
+      search_title($title);
+    },
+
+    'sdb'       => sub {
+      my $search = join(' ', @_);
+      search_db($search);
+    },
+
+    'spl'       => sub {
+      my $search = join(' ', @_);
+      search_playlist($search);
+    },
+
+    'l'         => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      list_albums();
+    },
+    
     'e'         => sub { list_external(@_); },
     'add'       => sub {
       add_playlist(0, @_); # Dont clear the current playlist
@@ -952,10 +1003,7 @@ sub shell {
         print STDERR "Playlist is empty!\n";
         return(1);
       }
-      else {
-        $mpd->next;
-        print current() . "\n";
-      }
+      print current() . "\n";
     },
 
     'p'         => sub {
@@ -963,15 +1011,15 @@ sub shell {
         print STDERR "Playlist is empty!\n";
         return(1);
       }
-      else {
-        $mpd->prev;
-        print current() . "\n";
-      }
+      $mpd->prev;
+      print current() . "\n";
     },
+
     't'         => sub {
       $mpd->pause;
-      print $mpd->status->state . "\n"; 
+      print $mpd->status->state . "\n";
     },
+
     's'         => sub {
       $mpd->playlist->shuffle;
       print "New playlist version is " .$mpd->status->playlist . "\n"
@@ -982,19 +1030,17 @@ sub shell {
         print STDERR "Nothing is playing - playlist is empty\n";
         return(1);
       }
-      else {
-        print current() . "\n";
-      }
+      print current() . "\n";
     },
+
     'q'         => sub {
       if(invalid_pos(@_)) {
         printf("No such song%s\n", (@_ < 1) ? 's' : '');
         return(1);
       }
-      else {
-        queue(@_);
-      }
+      queue(@_);
     },
+
     'ra'        => sub {
       $mpd->random;
       my $status =  ($mpd->status->random)
@@ -1002,6 +1048,7 @@ sub shell {
         : "Random: \e[1mOff\e[0m";
       print "$status\n";
     },
+
     're'        => sub {
       $mpd->repeat;
       my $status = ($mpd->status->repeat)
@@ -1009,6 +1056,7 @@ sub shell {
         : "Repeat: \e[1mOff\e[0m";
       print "$status\n";
     },
+
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
     'h'         => sub { shell_msg_help(); },
@@ -1035,17 +1083,6 @@ sub shell {
     }
   }
   exit(0);
-}
-
-sub invalid_re {
-  my $re = shift;
-  eval { qr/$re/ };
-  if($@) {
-    return(1);
-  }
-  else {
-    return(0);
-  }
 }
 
 sub search_playlist {
@@ -1091,7 +1128,6 @@ sub search_db {
 
 sub search_album {
   my $search = shift;
-
   my @tracks = $mpd->collection->songs_from_album_partial($search);
   if(!@tracks) {
     print ">> $c[2]$search$c[9]: no tracks found\n";
@@ -1139,6 +1175,10 @@ sub pipe_add {
 }
 
 sub current {
+  if(playlist_is_empty()) {
+    print STDERR "Playlist is empty - nothing is playing\n";
+    exit(1);
+  }
   my $cu = $mpd->current;
   my(
     $artist,
@@ -1185,6 +1225,48 @@ sub current {
     }
   }
   return($current);
+}
+
+sub playlist_is_empty {
+  if($mpd->playlist->as_items == 0) {
+    return(1);
+  }
+  else {
+    return(0);
+  }
+}
+
+sub invalid_pos {
+  my @pos = @_;
+  my @playlist = map { $_ = $_->pos } $mpd->playlist->as_items;
+  my $fail = 0;
+
+  for(@pos) {
+    if($_ ~~ @playlist) {
+      # all good
+    }
+    else {
+      $fail++;
+    }
+  }
+  return($fail);
+}
+
+sub invalid_re {
+  my $re = shift;
+  eval { qr/$re/ };
+  if($@) {
+    return(1);
+  }
+  else {
+    return(0);
+  }
+}
+
+sub onoff {
+  my $what = shift;
+  $what = ($what) ? 'Yes' : 'No';
+  return($what);
 }
 
 sub help {
