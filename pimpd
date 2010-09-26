@@ -1325,17 +1325,17 @@ pimpd is an MPD client written in Perl that aims to implement what the
 excellent mpc client is lacking (for good reasons), as well as all the
 regular functionality one would expect.
 
-=item Regular expression based queries
+=head3 Regular expression based queries
 
   You can search the database and playlist using regular expressions. There are
   several other (faster) ways to search as well - by artist, album or title.
 
-=item Randomizing
+=head3 Randomizing
 
   The 'I am lucky button' - add n randomly picked tracks to the current
   playlist.
 
-=item Transfering of music
+=head3 Transfering of music
 
   There are several ways of transfering music.
 
@@ -1349,12 +1349,12 @@ regular functionality one would expect.
 
   -cpl copies all tracks in the specified playlist to the specified location.
 
-=item Interactive shell
+=head3 Interactive shell
 
   From the interactive shell one can access almost all functionality that's
   available through regular option flags.
 
-=item Monitor song changes
+=head3 Monitor song changes
 
   There are two ways to monitor song changes:
 
@@ -1364,7 +1364,7 @@ regular functionality one would expect.
       integration in dzen2 and so on. Most window managers uses their own sort
       of notification functionality which can also be used.
 
-=item Now playing
+=head3 Now playing
 
   There are two options that will yeild some info on the current track:
 
@@ -1372,7 +1372,7 @@ regular functionality one would expect.
 
   -np  print information on the currently playing track only, on a single line.
 
-=item Colors
+=head3 Colors
 
   pimpd does support colorschemes, which are defined and loaded from the
   configuration file. 256 colors is supported, as well as no colors at all.
