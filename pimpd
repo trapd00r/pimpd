@@ -883,9 +883,33 @@ sub queue {
   print ">> Queue finished.\n";
 }
 
+sub playlist_is_empty {
+  if($mpd->playlist->as_items == 0) {
+    return(1);
+  }
+  else {
+    return(0);
+  }
+}
+
+sub invalid_pos {
+  my @pos = @_;
+  my @playlist = map { $_ = $_->pos } $mpd->playlist->as_items;
+  my $fail = 0;
+
+  for(@pos) {
+    if($_ ~~ @playlist) {
+      # all good
+    }
+    else {
+      $fail++;
+    }
+  }
+  return($fail);
+}
 sub shell {
   my $option = shift;
-  my($cmd, $arg); # for later use
+  my($cmd, $arg, @cmd_args); # for later use
   shell_msg_help();
 
   my $opts = {
@@ -923,16 +947,54 @@ sub shell {
       add_playlist(0, @_); # Dont clear the current playlist
     },
 
-    'n'         => sub { $mpd->next; print current() . "\n"; },
-    'p'         => sub { $mpd->prev; print current() . "\n"; },
-    't'         => sub { $mpd->pause; print $mpd->status->state . "\n"; },
+    'n'         => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Playlist is empty!\n";
+        return(1);
+      }
+      else {
+        $mpd->next;
+        print current() . "\n";
+      }
+    },
+
+    'p'         => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Playlist is empty!\n";
+        return(1);
+      }
+      else {
+        $mpd->prev;
+        print current() . "\n";
+      }
+    },
+    't'         => sub {
+      $mpd->pause;
+      print $mpd->status->state . "\n"; 
+    },
     's'         => sub {
       $mpd->playlist->shuffle;
       print "New playlist version is " .$mpd->status->playlist . "\n"
     },
 
-    'np'        => sub { print current() . "\n"; },
-    'q'         => sub { queue(@_); },
+    'np'        => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return(1);
+      }
+      else {
+        print current() . "\n";
+      }
+    },
+    'q'         => sub {
+      if(invalid_pos(@_)) {
+        printf("No such song%s\n", (@_ < 1) ? 's' : '');
+        return(1);
+      }
+      else {
+        queue(@_);
+      }
+    },
     'ra'        => sub {
       $mpd->random;
       my $status =  ($mpd->status->random)
@@ -959,12 +1021,13 @@ sub shell {
     print "\e[0m";
     ($cmd) = $choice =~ m/^(\w+)/;
     ($arg) = $choice =~ m/\s+(.+)$/;
+    @cmd_args  = split(/\s+/, $arg);
 
-    print "cmd: $cmd\narg: $arg\n" if($DEBUG);
+    print "cmd: $cmd\narg: @cmd_args\n" if($DEBUG);
 
     if(defined($opts->{$cmd})) {
       $mpd->play;
-      $opts->{$cmd}->($arg);
+      $opts->{$cmd}->(@cmd_args);
     }
     else {
       $opts->{h}->();
