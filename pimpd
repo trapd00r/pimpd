@@ -181,7 +181,7 @@ sub shell_msg_help {
         spl   p    search the playlist for pattern
         fav   NIL  add the current track to the favorites
         list  NIL  show the current playlist
-        info  NIL  show now playing information
+        i     NIL  show now playing information
         np    NIL  show the currently playing track
         cp    NIL  copy the currently playing track to specifed location
         cpl   s    copy the content of playlist s to specifed location
@@ -907,7 +907,7 @@ sub shell {
     'cp'        => sub { cp(); },
     'cpa'       => sub { cp_album(); },
     'cpl'       => sub { cp_list(@_); },
-    'info'      => sub { information(); },
+    'i'         => sub { information(); },
     'mon'       => sub { monitor(); },
     'sar'       => sub {
       print @_,"\n";
