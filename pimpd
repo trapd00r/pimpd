@@ -745,7 +745,6 @@ sub cp_list {
   return(0);
 }
 
-# 2010-09-rock.m3u
 sub favlist {
   my $playlist = shift;
 
@@ -755,7 +754,7 @@ sub favlist {
     }
     else {
       my (undef, undef, undef, undef, $month, $year) = localtime(time);
-      $month += 2;
+      $month += 1;
       $year  += 1900;
       $playlist = sprintf("%d-%02d-%s", $year, $month, lc($mpd->current->genre));
     }
@@ -763,14 +762,23 @@ sub favlist {
 
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
+  my($basename) = $filepath =~ m;.+/(.+)$;; 
+
+  my $history_path = "$playlist_dir/$history_playlist";
 
   if(defined($remote_host)) {
     $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+
+    # Lets add the track to the playlist...
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
       "printf \"%s\n\" $filepath >> $fullpath.m3u") == 0 or croak($!);
 
+    # ... and to the history file as well
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+      "printf \"%s\n\" $filepath >> $history_path.m3u") == 0 or croak($!);
+
     printf("$c[1]%s\e[0m\e[1m >> $ssh_host:$c[3]%s\e[0m\n",
-      $filepath, "$fullpath.m3u");
+      $basename, "$fullpath.m3u");
     return(0);
   }
   open(my $fh, '>>', "$fullpath.m3u")
@@ -778,14 +786,14 @@ sub favlist {
   print $fh "$filepath\n";
   close($fh);
 
-  my $history_path = "$playlist_dir/$history_playlist";
-
   open(my $fh, '>>', "$history_path.m3u")
     or croak("Could not open $history_path.m3u: $!");
   print $fh "$filepath\n";
   close($fh);
 
-  print $c[1].$filepath,$c[9].' >> ',$c[3]."$fullpath\.m3u",$c[0], "\n";
+  printf("$c[1]%s\e[0m\e[1m >> \e[0m$c[3]%s.m3u\e[0m\n",
+    $basename, $fullpath);
+  return(0);
 }
 
 sub list_albums {
@@ -984,8 +992,7 @@ sub shell {
         print STDERR "Nothing is playing - playlist is empty\n";
         return(1);
       }
-      my $favlist = join(' ', @_);
-      favlist($favlist);
+      favlist(@_);
     },
 
     'play'      => sub {
