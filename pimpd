@@ -3,6 +3,7 @@ our $APP      = 'pimpd';
 our $VERSION  = '1.6.4';
 our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
+# playlist statistic?... hmm
 use strict;
 my $DEBUG = 0;
 
@@ -57,7 +58,16 @@ our(
   $pidfile,
   $dzen_cmd,
   $dzen_font,
+
+  $player,
+  @player_opts,
+  $player_url,
 );
+our @opt_player_filelist;
+
+if(defined($player_url)) {
+  push(@opt_player_filelist, $player_url);
+}
 
 # Used for GetOptions()
 our(
@@ -82,6 +92,7 @@ our(
   $opt_run_cp,
   $opt_cp_list,
   $opt_cp_album,
+  @opt_player_filelist,
 
   # So we could override configured settings on the commandline
   $opt_remote_host,
@@ -104,6 +115,7 @@ else {
 }
 
 GetOptions(
+  'mplayer:s'          => \@opt_player_filelist,
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
@@ -152,7 +164,7 @@ if($opt_remote_host) {
   $mpd = Audio::MPD->new(
     host  => $opt_remote_host,
     port  => $opt_remote_port,
-    pass  => $opt_remote_pass,
+    pass  => 'void',
   );
 }
 
@@ -232,7 +244,7 @@ if($mpd->status->state eq 'stop') {
 print current(), "\n"                   if $opt_current;
 information()                           if $opt_information;
 playlist()                              if $opt_playlist;
-favlist()                               if $opt_favlist;
+favlist(shift)                          if $opt_favlist;
 list_albums()                           if $opt_list_albums;
 play_from_list()                        if $opt_play_from_list;
 monitor()                               if $opt_monitor;
@@ -261,7 +273,21 @@ search_artist($opt_search_artist)       if $opt_search_artist;
 search_title($opt_search_title)         if $opt_search_title;
 cp_list($opt_cp_list)                   if $opt_cp_list;
 cp_album()                              if $opt_cp_album;
+#player(@opt_player_filelist)           if @opt_player_filelist;
 
+sub player {
+  my @files = @_;
+
+  print STDERR "No player configured!" and return(1) if(!defined($player));
+  if(-e $pidfile) {
+    print STDERR "pimpd is already playing\n" and exit(1);
+  }
+  else {
+    daemonize();
+    exec($player, @player_opts, $player_url);
+  }
+  return(0);
+}
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
@@ -719,11 +745,22 @@ sub cp_list {
   return(0);
 }
 
+# 2010-09-rock.m3u
 sub favlist {
-  my $playlist = $ARGV[0] // lc($mpd->current->genre);
-  if(!defined($playlist) or $playlist eq '') {
-    $playlist = $fallback_playlist;
+  my $playlist = shift;
+
+  if(!defined($playlist))  {
+    if(!defined($mpd->current->genre) or $mpd->current->genre eq '') {
+      $playlist = $fallback_playlist;
+    }
+    else {
+      my (undef, undef, undef, undef, $month, $year) = localtime(time);
+      $month += 2;
+      $year  += 1900;
+      $playlist = sprintf("%d-%02d-%s", $year, $month, lc($mpd->current->genre));
+    }
   }
+
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
 
@@ -947,7 +984,8 @@ sub shell {
         print STDERR "Nothing is playing - playlist is empty\n";
         return(1);
       }
-      favlist();
+      my $favlist = join(' ', @_);
+      favlist($favlist);
     },
 
     'play'      => sub {
