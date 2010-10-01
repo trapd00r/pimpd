@@ -120,7 +120,7 @@ GetOptions(
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
-  'cpl|cp-list:s'      => \$opt_cp_list,
+  'cpl|cp-list:s'      => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_favlist,
   'l|listalbums'       => \$opt_list_albums,
@@ -577,8 +577,9 @@ sub cp {
     print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
 
     chomp(my $choice = <STDIN>);
-    if(lc($choice) ne 'y' && !defined($choice)) { # better be explicit
+    if(lc($choice) ne 'y') {
       print STDERR "Bailing out.\n";
+      return(1);
     }
     else {
       if(unlink($dest)) {
@@ -602,7 +603,7 @@ sub cp {
   chomp(my $file = $mpd->current->file);
 
   # escape evil chars the shell will munch
-  $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
   if(defined($remote_host)) {
     return scp($ssh_host, $ssh_port, "$basedir/$file", $dest)
@@ -612,13 +613,42 @@ sub cp {
     print "$file => $dest\n";
   }
   else {
-    print STDERR "cp: $!\n";
+    print STDERR "cp: $basedir/$file $!\n";
   }
   return(0);
 }
 
 sub cp_album {
   my $dest = shift // $portable;
+  if(-e $dest && ! -d $dest) { #FIXME make this a function
+    print STDERR "$dest exists, but is \e[1mNOT\e[0m a directory!\n";
+    print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
+
+    chomp(my $choice = <STDIN>);
+    if(lc($choice) ne 'y') {
+      print STDERR "Bailing out.\n";
+      return(1);
+    }
+    else {
+      if(unlink($dest)) {
+        print "$dest removed successfully\n";
+      }
+      else {
+        print STDERR "Could not remove $dest: $!\n";
+        return(1);
+      }
+    }
+  }
+
+  if(! -d $dest) {
+    if(make_path("$dest", 1, 0777)) {
+      print "$dest \e[1mcreated\e[0m";
+    }
+    else {
+      print STDERR "Could not create $dest: $!\n";
+      return(1);
+    }
+  }
 
   my $file  = $mpd->current->file;
   return(1) if(!$file);
@@ -638,21 +668,23 @@ sub cp_album {
     print "ALBNAME: $albname\n";
   } if($DEBUG);
 
-  print "$c[13]\e[1m$albname\e[0m\e[1m => \e[0m$c[3]$dest\e[0m\n";
+  printf("$c[13]\e[1m%50.50s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n",
+    $albname, $dest);
+
 
   if(defined($remote_host)) {
     if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
-      print "\nTransfer of \e[1m$albname\e[0m done\n";
+      print "\nTransfer of \e[1m$albname\e[0m finished\n";
     }
     else {
       print STDERR "$!\n";
     }
   }
   else {
-    for(glob("$album/*")) {
+    for(grep{ /\.(?:mp3|ogg|flac|wav)$/ } glob("$album/*")) {
       my ($basename) = $_ =~ m;.+/(.+)$;;
       if(copy($_, $dest)) {
-        printf("\e[1m%50.50s\e[0m => %s\n", $basename, $dest);
+        printf("%50.50s\n", $basename);
       }
       else {
         print STDERR "$_: $!\n";
@@ -667,7 +699,23 @@ sub cp_list {
   my $list = shift;
   my $dest = shift // $portable;
 
+
   my @known_playlists = $mpd->collection->all_playlists;
+
+  if(!defined($list)) { #FIXME
+    my $i = 0;
+
+    for(@known_playlists) {
+      printf("\e[1m% 3d\e[0m %s\n", $i, $_);
+
+      $i++;
+    }
+
+    print "list: ";
+    chomp($list = <STDIN>);
+    $list = $known_playlists[$i];
+  }
+
   if($list ~~ @known_playlists) {
     # All fine
   }
@@ -725,6 +773,7 @@ sub cp_list {
     return(1);
   }
 
+  printf("$c[13]\e[1m%50.50s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n", $list, $dest);
   for my $file(@files) {
     if(defined($remote_host)) {
       my $full = "$basedir/$file";
@@ -732,9 +781,11 @@ sub cp_list {
       scp($ssh_host, $ssh_port, "$full", $dest);
     }
     else {
-      my $full = "$basedir/$file";
+      my $full     = "$basedir/$file";
+      my ($basename) = $file =~ m;.+/(.+)$;;
+
       if(copy("$full", $dest)) {
-        print "$full => $dest\n";
+        printf("%50.50s\e[0m\n", $basename);
       }
       else {
         print STDERR "cp_list: $!\n";
@@ -1076,6 +1127,7 @@ sub shell {
         print STDERR "Playlist is empty!\n";
         return(1);
       }
+      $mpd->next;
       print current() . "\n";
     },
 
