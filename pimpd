@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.4';
+our $VERSION  = '1.6.5-next';
 our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
 
 # playlist statistic?... hmm
@@ -572,34 +572,9 @@ sub scp {
 
 sub cp {
   my $dest = shift // $portable;
-  if(-e $dest && ! -d $dest) {
-    print STDERR "$dest exists, but is \e[1mNOT\e[0m a directory!\n";
-    print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
 
-    chomp(my $choice = <STDIN>);
-    if(lc($choice) ne 'y') {
-      print STDERR "Bailing out.\n";
-      return(1);
-    }
-    else {
-      if(unlink($dest)) {
-        print "$dest removed successfully\n";
-      }
-      else {
-        print STDERR "Could not remove $dest: $!\n";
-        return(1);
-      }
-    }
-  }
-  if(! -d $dest) {
-    if(make_path("$dest", 1, 0777)) {
-      print "$dest \e[1mcreated\e[0m\n";
-    }
-    else {
-      print STDERR "Could not create $dest: $!\n";
-      return(1);
-    }
-  }
+  is_existing_dir($dest);
+
   chomp(my $file = $mpd->current->file);
 
   # escape evil chars the shell will munch
@@ -618,27 +593,43 @@ sub cp {
   return(0);
 }
 
-sub cp_album {
-  my $dest = shift // $portable;
-  if(-e $dest && ! -d $dest) { #FIXME make this a function
-    print STDERR "$dest exists, but is \e[1mNOT\e[0m a directory!\n";
-    print STDERR "Delete and \e[1mmkdir\e[0m $dest? [y/N]: ";
+sub is_existing_dir {
+  my $dir = shift;
+
+  if(-e $dir && ! -d $dir) {
+    print STDERR "$dir exists, but is not a directory\n";
+    print STDERR "Delete and mkdir $dir?\n";
 
     chomp(my $choice = <STDIN>);
-    if(lc($choice) ne 'y') {
-      print STDERR "Bailing out.\n";
+
+    if(lc($choice ne 'y')) {
+      print STDERR "Bailing out\n";
       return(1);
     }
     else {
-      if(unlink($dest)) {
-        print "$dest removed successfully\n";
+      if(unlink($dir)) {
+        print "$dir removed successfully\n";
       }
       else {
-        print STDERR "Could not remove $dest: $!\n";
+        print STDERR "Could not remove $dir: $!\n";
         return(1);
       }
     }
   }
+  elsif(! -d $dir) {
+    if(make_path($dir, 1, 0777)) {
+      print "$c[5]>>\e[0m\e[1m $dir\e[0m created\n\n";
+    }
+    else {
+      print STDERR "Could not mkdir $dir: $!\n";
+    }
+  }
+}
+
+sub cp_album {
+  my $dest = shift // $portable;
+
+  is_existing_dir($dest);
 
   if(! -d $dest) {
     if(make_path("$dest", 1, 0777)) {
@@ -698,6 +689,8 @@ sub cp_album {
 sub cp_list {
   my $list = shift;
   my $dest = shift // $portable;
+
+  is_existing_dir($dest);
 
 
   my @known_playlists = $mpd->collection->all_playlists;
