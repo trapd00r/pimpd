@@ -132,7 +132,7 @@ GetOptions(
     print "$_\n" for sort($mpd->collection->all_playlists);
     exit(0);
   },
-  'm|monitor'          => \$opt_monitor,
+  'm|mon|monitor'      => \$opt_monitor,
   'md|monitord'        => \$opt_monitor_d,
   'queue=i{1,}'        => \@opt_queue,
   'shell'              => \$opt_shell,
@@ -585,7 +585,9 @@ sub cp {
   }
 
   if(copy("$basedir/$file", $dest)) {
-    print "$file => $dest\n";
+    my($basename) = $file =~ m;.+/(.+)$;;
+    printf("$c[10]\e[1m%s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n",
+      $basename, $dest);
   }
   else {
     print STDERR "cp: $basedir/$file $!\n";
@@ -691,7 +693,6 @@ sub cp_list {
   my $dest = shift // $portable;
 
   is_existing_dir($dest);
-
 
   my @known_playlists = $mpd->collection->all_playlists;
 
@@ -806,7 +807,7 @@ sub favlist {
 
   my $filepath = $mpd->current->file;
   my $fullpath = "$playlist_dir/$playlist";
-  my($basename) = $filepath =~ m;.+/(.+)$;; 
+  my($basename) = $filepath =~ m;.+/(.+)$;;
 
   my $history_path = "$playlist_dir/$history_playlist";
 
@@ -991,14 +992,15 @@ sub queue {
     my $time = $mpd->status->time->seconds_total;
     $argc++;
 
-    my $next_in_list = $to_play[$argc];
-    print current() . "\n";
+    daemonize();
+    #my $next_in_list = $to_play[$argc];
+    #print current() . "\n";
 
-    printf("$c[13]>>> %s - %s - %s \e[0m\n",
-      $track_in_list[$next_in_list]->artist,
-      $track_in_list[$next_in_list]->album,
-      $track_in_list[$next_in_list]->title,
-    ) if(scalar(@to_play) != $argc);
+    #printf("$c[13]>>> %s - %s - %s \e[0m\n",
+    #  $track_in_list[$next_in_list]->artist,
+    #  $track_in_list[$next_in_list]->album,
+    #  $track_in_list[$next_in_list]->title,
+    #) if(scalar(@to_play) != $argc);
 
     if(scalar(@to_play) == 1) {
       return(0);
