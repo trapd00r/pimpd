@@ -1,9 +1,7 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.5-next';
-our $ABSTRACT = 'Perl Interface for the Music Player Daemon';
+our $VERSION  = '1.6.6-next';
 
-# playlist statistic?... hmm
 use strict;
 my $DEBUG = 0;
 
@@ -41,33 +39,38 @@ else {
 # Imported from the config
 our(
   $basedir,
+
   $playlist_dir,
   $fallback_playlist,
+
   $portable,
+
   $remote_host,
   $remote_port,
   $remote_user,
   $remote_pass,
+
   $ssh_host,
   $ssh_port,
   $ssh_user,
+
   $history_playlist,
+
   $opt_color,
   @c,
+
   $daemon_cmd,
+
   $pidfile,
+
   $dzen_cmd,
   $dzen_font,
 
   $player,
   @player_opts,
-  $player_url,
+  $player_stream,
 );
-our @opt_player_filelist;
 
-if(defined($player_url)) {
-  push(@opt_player_filelist, $player_url);
-}
 
 # Used for GetOptions()
 our(
@@ -75,30 +78,42 @@ our(
   $opt_shell,
   @opt_list_external,
   $opt_information,
+
   $opt_search_artist,
   $opt_search_album,
   $opt_search_title,
   $opt_search_playlist,
   $opt_search_db,
+
   $opt_randomize,
+
   @opt_add_playlist,
   $opt_playlist,
   $opt_favlist,
   $opt_play_from_list,
+
   $opt_monitor,
   $opt_monitor_d,
+
   $opt_list_albums,
+
   $opt_current,
+
   $opt_run_cp,
   $opt_cp_list,
   $opt_cp_album,
-  @opt_player_filelist,
+
+  @opt_player_filelist, # ^ $default_stream
 
   # So we could override configured settings on the commandline
   $opt_remote_host,
   $opt_remote_port,
   $opt_remote_pass,
 );
+
+if(defined($player_stream)) {
+  push(@opt_player_filelist, $player_stream);
+}
 
 my $e = "\e[38;5";
 
@@ -120,7 +135,7 @@ GetOptions(
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
   'cp|copy'            => \$opt_run_cp,
-  'cpl|cp-list:s'      => sub { shift; cp_list(shift); },
+  'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_favlist,
   'l|listalbums'       => \$opt_list_albums,
@@ -151,7 +166,7 @@ GetOptions(
   'ssh_user'           => \$ssh_user,
 
   'kill'               => \&killkid,
-  'mpd-kill'           => sub { $mpd->kill ;},
+  'mpd-kill'           => sub { $mpd->kill; },
   'debug'              => \$DEBUG,
   'h|help'             => \&help,
   'man'                => sub { pod2usage(verbose => 3) },
@@ -210,6 +225,7 @@ sub shell_msg_help {
         q     n    queue n tracks
         l     NIL  list all albums featuring artist
         e     s    list all tracks in playlist s
+
         h     NIL  show this help
 
         exit  NIL  exit
@@ -273,7 +289,7 @@ search_artist($opt_search_artist)       if $opt_search_artist;
 search_title($opt_search_title)         if $opt_search_title;
 cp_list($opt_cp_list)                   if $opt_cp_list;
 cp_album()                              if $opt_cp_album;
-#player(@opt_player_filelist)           if @opt_player_filelist;
+#player(@opt_player_filelist)            if @opt_player_filelist;
 
 sub player {
   my @files = @_;
@@ -283,8 +299,8 @@ sub player {
     print STDERR "pimpd is already playing\n" and exit(1);
   }
   else {
-    daemonize();
-    exec($player, @player_opts, $player_url);
+    daemonize() unless($DEBUG);
+    exec($player, @player_opts, @files);
   }
   return(0);
 }
@@ -449,46 +465,12 @@ sub add_playlist {
   my $clear_or_not = shift; # clear playlist?
   if(@_) {
     my @playlists = @_;
-    my @valid_playlists = $mpd->collection->all_playlists;
+    @playlists = is_existing_list(@playlists);
+
+    return(1) if(!@playlists);
+
     $mpd->playlist->clear if($clear_or_not > 0);
 
-    for my $playlist(@playlists) {
-      if($playlist ~~ @valid_playlists) {
-        next;
-      }
-      else {
-        my @relevant = ();
-        for(@valid_playlists) {
-          if($_ =~ /$playlist/i) {
-            push(@relevant, $_);
-          }
-        }
-        if(scalar(@relevant) == 0) {
-          print STDERR "Playlist \e[1m$c[5]$playlist\e[0m does not exist\n";
-          return(1);
-        }
-        elsif(scalar(@relevant) == 1) {
-          $playlist = $relevant[0];
-        }
-        else {
-          my $i = 0;
-
-          for(@relevant) {
-            printf("\e[1m%3d\e[0m %s\n", $i, $_);
-            $i++;
-          }
-          print "choice: ";
-          chomp(my $choice = <STDIN>);
-
-          if($choice ~~ @valid_playlists) {
-            $playlist = $choice;
-          }
-          elsif($choice >= 0 && $choice <= scalar(@valid_playlists)) {
-            $playlist = $relevant[$choice];
-          }
-        }
-      }
-    }
     $mpd->playlist->load(@playlists);
     print "Adding \e[1m$_\e[0m\n" for(@playlists);
     $mpd->play;
@@ -498,67 +480,25 @@ sub add_playlist {
 sub list_external {
   my @playlists = @_;
 
-  my @known_playlists = $mpd->collection->all_playlists;
+  @playlists = is_existing_list(@playlists);
   for my $playlist(@playlists) {
-    if($playlist ~~ @known_playlists) {
-      # All good!
-    }
-    else {
-      my @relevant = ();
-
-      for(@known_playlists) {
-        if($_ =~ /$playlist/i) {
-          push(@relevant, $_);
-        }
-      }
-      if(scalar(@relevant) == 0) {
-        print STDERR "No such playlist $c[5]$playlist\e[0m\n";
-        return(1);
-      }
-      elsif(scalar(@relevant) == 1) {
-        #NOTE Maybe we should inform what we're doing here.
-        #print STDERR "$playlist does not exist. However, a match was found:\n";
-        $playlist = $relevant[0];
-      }
-      else {
-        my $i = 0;
-
-        for(@relevant) {
-          printf("\e[1m%3d\e[0m %s\n", $i, $_);
-          $i++;
-        }
-        print "choice: ";
-        chomp(my $choice = <STDIN>);
-
-        # Just in case Ulla User changed her mind
-        if($choice ~~ @known_playlists) {
-          $playlist = $choice;
-        }
-        elsif($choice >= 0 && $choice <= scalar(@known_playlists)) {
-          $playlist = $relevant[$choice];
-        }
-      }
-    }
     my $full_path = "$playlist_dir/$playlist\.m3u";
 
+    my $fh = undef;
     if(defined($remote_host)) {
       #$full_path =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-      open(
-        my $fh,
-        "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|"
-      ) or die("$ssh_host:$ssh_port: $!");
-
-      while(<$fh>) {
-        print "$c[6]$playlist\e[0m: \e[1m$_\e[0m";
-      }
+      open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|")
+        or die("$ssh_host:$ssh_port: $!");
     }
     else {
-      open(my $fh, '<', $full_path) or die("Can not open $full_path: $!");
-      while(<$fh>) {
-        print "$c[4]$playlist\e[0m: \e[1m$_\e[0m";
-      }
+      open($fh, '<', $full_path) or die("Can not open $full_path: $!");
     }
+    while(<$fh>) {
+      print "$c[4]$playlist\e[0m: \e[1m$_\e[0m";
+    }
+    close($fh);
   }
+  return(0);
 }
 
 sub scp {
@@ -688,101 +628,97 @@ sub cp_album {
   return(0);
 }
 
-sub cp_list {
-  my $list = shift;
-  my $dest = shift // $portable;
+sub is_existing_list {
+  my @lists       = @_;
+  my @valid_lists = sort($mpd->collection->all_playlists);
 
-  is_existing_dir($dest);
-
-  my @known_playlists = $mpd->collection->all_playlists;
-
-  if(!defined($list)) { #FIXME
-    my $i = 0;
-
-    for(@known_playlists) {
-      printf("\e[1m% 3d\e[0m %s\n", $i, $_);
-
-      $i++;
+  for my $list(@lists) {
+    if($list ~~ @valid_lists) {
+      next;
     }
+    else {
+      my @choices = ();
 
-    print "list: ";
-    chomp($list = <STDIN>);
-    $list = $known_playlists[$i];
-  }
+      for my $valid(@valid_lists) {
+        if($valid =~ /$list/i) {
+          push(@choices, $valid);
+        }
+      }
+      if(scalar(@choices) == 0) {
+        print STDERR "No such playlist '$c[5]$list\e[0m'\n";
+        return;
+      }
 
-  if($list ~~ @known_playlists) {
-    # All fine
-  }
-  else {
-    # If $list is undef, we let it fall through here anyway, so we can pick and
-    # choose from the array of existing playlists
-    my @choices = ();
+      my $i = 0;
+      for my $choice(@choices) {
+        printf("\e[1m%3d\e[0m %s\n", $i, $choice);
+        $i++;
+      }
+      print "choice: ";
+      chomp(my $answer = <STDIN>);
 
-    for(@known_playlists) {
-      if($_ =~ /$list/i) {
-        push(@choices, $_);
+
+      if($answer ~~ @valid_lists) {
+        $list = $answer;
+      }
+      # Make sure the number selected is in fact valid
+      elsif($answer >= 0 and $answer <= scalar(@valid_lists)) {
+        $list = $choices[$answer];
+      }
+      else {
+        print STDERR "$answer is not valid\n";
+        return(1);
       }
     }
-    if(scalar(@choices) == 0) {
-      print STDERR "No such playlist $c[5]$list\e[0m\n";
-      return(1);
-    }
-
-    my $i = 0;
-    for(@choices) {
-      printf("\e[1m%3d\e[0m %s\n", $i, $_);
-      $i++;
-    }
-    print "choice: ";
-    chomp(my $choice = <STDIN>);
-
-    if($choice ~~ @known_playlists) {
-      $list = $choice;
-    }
-    elsif($choice >= 0 && $choice <= scalar(@known_playlists)) {
-      $list = $choices[$choice];
-    }
   }
-  my @files = ();
+  return(@lists);
+}
 
-  my $full_path = "$playlist_dir/$list\.m3u";
 
-  if(defined($remote_host)) {
-    open(
-      my $fh,
-      "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|"
-      ) or die("cp_list: $ssh_host:$ssh_port: $!");
+sub cp_list {
+  my @lists = @_;
+  my $dest  = $portable;
 
-    chomp(@files = <$fh>);
-    close($fh);
-  }
-  else {
-    open(my $fh, '<', $full_path) or die("Can not open $full_path: $!");
-    chomp(@files = <$fh>);
-    close($fh);
-  }
+  is_existing_dir($dest);
+  @lists = is_existing_list(@lists);
 
-  if(scalar(@files) == 0) {
-    print STDERR "There are no files in $list!\n";
-    return(1);
-  }
+  my %playlist_map;
 
-  printf("$c[13]\e[1m%50.50s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n", $list, $dest);
-  for my $file(@files) {
+  for my $playlist(@lists) {
+    my $full_path = "$playlist_dir/$playlist\.m3u";
+
+    my $fh = undef;
+
     if(defined($remote_host)) {
-      my $full = "$basedir/$file";
+      open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|")
+        or die("cp_list(): $ssh_host:$ssh_port: $!");
+    }
+    else {
+      open($fh, '<', $full_path) or die("Can not open $full_path: $!");
+    }
+
+    while(<$fh>) {
+      chomp;
+      $playlist_map{$_} = $playlist;
+    }
+    close($fh);
+  }
+
+  for my $file(keys(%playlist_map)) {
+    my $full = "$basedir/$file";
+
+    if(defined($remote_host)) {
       $full =~ s/([ä;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
       scp($ssh_host, $ssh_port, "$full", $dest);
     }
     else {
-      my $full     = "$basedir/$file";
-      my ($basename) = $file =~ m;.+/(.+)$;;
-
-      if(copy("$full", $dest)) {
-        printf("%50.50s\e[0m\n", $basename);
+      my($basename) = $file =~ m;.+/(.+)$;;
+      if(copy($full, $dest)) {
+        printf("[$c[6]%5.11s\e[0m] %50.50s \e[1m => \e[0m %s\n",
+          $playlist_map{$file}, $basename, $dest);
       }
       else {
-        print STDERR "cp_list: $!\n";
+        print STDERR "cp_list(): $!\n";
         return(1);
       }
     }
@@ -859,7 +795,7 @@ sub play_from_list {
     print STDERR "What should we play?\n";
     exit(1);
   }
-  #TODO Might wanna start playback if !args
+
   if($choice !~ /^\d+$/) {
     print STDERR "Integers only, please.\n";
   }
@@ -1224,7 +1160,7 @@ sub search_playlist {
     if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
       # GNU Grep-like coloring
-      print "${^PREMATCH}$c[2]\e[1m$1\e[0m$2\n";
+      print "${^PREMATCH}$c[5]\e[1m$1\e[0m$2\n";
     }
   }
   if(scalar(@found) < 1) {
