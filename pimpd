@@ -809,6 +809,7 @@ sub play_from_list {
 }
 
 sub daemonize {
+  my $daemon_log = shift // '/dev/null';
   use POSIX 'setsid';
   my $PID = fork();
   exit(0) if($PID); #parent
@@ -827,7 +828,7 @@ sub daemonize {
     open(my $fh, '>', $pidfile) or die("Cant open $pidfile: $!");
     print $fh $$;
     close($fh);
-    open(STDOUT, '>', '/dev/null');
+    open(STDOUT, '>', $daemon_log);
     open(STDERR, '>', '/dev/null');
     open(STDIN,  '<', '/dev/null');
   }
