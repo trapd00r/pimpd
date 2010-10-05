@@ -464,6 +464,17 @@ sub playlist {
 sub add_playlist {
   my $clear_or_not = shift; # clear playlist?
   if(@_) {
+    if( ($_[0] eq 'all') and (not('all' ~~ $mpd->collection->all_playlists)) ) {
+
+      print "Adding all playlists\n";
+      my @all = $mpd->collection->all_playlists;
+      $mpd->playlist->clear if($clear_or_not > 0);
+      for(@all) {
+        $mpd->playlist->load($_);
+      }
+
+      return(0);
+    }
     my @playlists = @_;
     @playlists = is_existing_list(@playlists);
 
@@ -472,7 +483,9 @@ sub add_playlist {
     $mpd->playlist->clear if($clear_or_not > 0);
 
     $mpd->playlist->load(@playlists);
-    print "Adding \e[1m$_\e[0m\n" for(@playlists);
+    print "Adding ";
+    print "\e[1m$_\e[0m " for @playlists;
+    
     $mpd->play;
   }
 }
@@ -1425,7 +1438,8 @@ regular functionality one would expect.
   -lsp,   --list-pl       list all available playlists
   -p,     --playlist      show the current playlist
   -t,     --track         play track number n from playlist
-  -a,     --add           add playlist and play it
+  -a,     --add           add playlist and play it. If the first arg is equal to
+                          'all', all available playlists will be added
   -m,     --monitor       monitor MPD for song changes (output on STDOUT)
   -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
                           output should go is specified in the configuration file.
