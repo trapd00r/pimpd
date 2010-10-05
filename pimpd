@@ -65,10 +65,6 @@ our(
 
   $dzen_cmd,
   $dzen_font,
-
-  $player,
-  @player_opts,
-  $player_stream,
 );
 
 
@@ -103,17 +99,11 @@ our(
   $opt_cp_list,
   $opt_cp_album,
 
-  @opt_player_filelist, # ^ $default_stream
-
   # So we could override configured settings on the commandline
   $opt_remote_host,
   $opt_remote_port,
   $opt_remote_pass,
 );
-
-if(defined($player_stream)) {
-  push(@opt_player_filelist, $player_stream);
-}
 
 my $e = "\e[38;5";
 
@@ -130,7 +120,6 @@ else {
 }
 
 GetOptions(
-  'mplayer:s'          => \@opt_player_filelist,
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
@@ -289,21 +278,6 @@ search_artist($opt_search_artist)       if $opt_search_artist;
 search_title($opt_search_title)         if $opt_search_title;
 cp_list($opt_cp_list)                   if $opt_cp_list;
 cp_album()                              if $opt_cp_album;
-#player(@opt_player_filelist)            if @opt_player_filelist;
-
-sub player {
-  my @files = @_;
-
-  print STDERR "No player configured!" and return(1) if(!defined($player));
-  if(-e $pidfile) {
-    print STDERR "pimpd is already playing\n" and exit(1);
-  }
-  else {
-    daemonize() unless($DEBUG);
-    exec($player, @player_opts, @files);
-  }
-  return(0);
-}
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
@@ -539,7 +513,7 @@ sub cp {
 
   if(copy("$basedir/$file", $dest)) {
     my($basename) = $file =~ m;.+/(.+)$;;
-    printf("$c[10]\e[1m%s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n",
+    printf("$c[4]\e[1m%s\e[0m\e[1m => \e[0m$c[6]%s\e[0m\n",
       $basename, $dest);
   }
   else {
@@ -1291,7 +1265,7 @@ sub current {
     if(-t *STDOUT) { # FIXME make this a to-be-called function
       $current = sprintf("[\e[1m$c[8]%d\e[0m]$c[3]>>$c[9] %s - \e[1m$c[3]%s\e[0m ",
         $pos, $artist, $song)
-        . sprintf("from \e[1m$c[10]%s\e[0m ($bitrate kbps) [$genre]", $album);
+        . sprintf("from \e[1m$c[4]%s\e[0m ($bitrate kbps) [$genre]", $album);
     }
     else {
       $current = sprintf(" [%d]>> %s - %s from %s [%s]",
