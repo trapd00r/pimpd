@@ -321,7 +321,7 @@ sub information {
   (undef,undef,undef,undef,undef, my $crnt_year) = localtime(time);
   $crnt_year += 1900;
 
-  $current{date} = "$e;38m\e[1m$current{date}\e[0m" if($current{date} eq $crnt_year);
+  $current{date} = "$e;38m$c[15]$current{date}\e[0m" if($current{date} eq $crnt_year);
 
   $status{repeat}  = onoff($status{repeat});
   $status{shuffle} = onoff($status{repeat});
@@ -330,22 +330,22 @@ sub information {
     $status{volume} = 'N/A (Software Mixer)';
   }
 
-  printf("$e;251m\e[1mS\e[0m%10s$c[6]\e[1m %.66s\e[0m \n",
+  printf("$e;251m$c[15]S\e[0m%10s$c[6]$c[15] %.66s\e[0m \n",
     'Artist:', $current{artist});
 
   printf("$e;250mO\e[0m%10s$c[8] %.66s\e[0m \n",
     'Album:' , $current{album});
 
-  printf("$e;249mN\e[0m%10s$c[7]\e[1m %.66s \n",
+  printf("$e;249mN\e[0m%10s$c[7]$c[15] %.66s \n",
     'Song:'  , $current{title});
 
   printf("$e;248mG\e[0m%10s %.66s \n",
     'Genre:' , $current{genre});
 
-  printf(" %10s$c[9] \e[1m%.66s\e[0m \n",
+  printf(" %10s$c[9] $c[15]%.66s\e[0m \n",
     'File:'  , $current{file});
 
-  printf("$e;247m\e[1mI\e[0m%10s %.66s \n",
+  printf("$e;247m$c[15]I\e[0m%10s %.66s \n",
     'Year:'  , $current{date});
 
   printf("$e;246mN\e[0m%10s %.66s \n",
@@ -357,10 +357,10 @@ sub information {
   printf("$e;244mO\e[0m%10s %.66s \n",
     'Audio:' , $current{audio});
 
-  print "$c[13]\e[1m";
+  print "$c[13]$c[15]";
   print '-' x 25, "\e[0m\n";
 
-  printf("$e;243m\e[1mS\e[0m%10s %.66s \n",
+  printf("$e;243m$c[15]S\e[0m%10s %.66s \n",
     'Repeat:', $status{repeat});
 
   printf("$e;242mT\e[0m%10s %.66s \n",
@@ -371,10 +371,10 @@ sub information {
   printf("$e;239mU\e[0m%10s %.66s \n", 'State:', $status{state});
   printf("$e;238mS\e[0m%10s %.66s \n", 'List V:', $status{list});
 
-  print "$c[13]\e[1m";
-  print '-' x 25, "\e[1m\n";
+  print "$c[13]$c[15]";
+  print '-' x 25, "$c[15]\n";
 
-  printf("$e;243m\e[1mS\e[0m%10s %.66s \n", 'Song:', $stats{song});
+  printf("$e;243m$c[15]S\e[0m%10s %.66s \n", 'Song:', $stats{song});
   printf("$e;236mT\e[0m%10s %.66s \n", 'List:', $stats{length} . ' songs');
   printf("$e;235mA\e[0m%10s %.66s \n", 'Songs:', $stats{songs});
   printf("$e;234mT\e[0m%10s %.66s \n", 'Albums:', $stats{albums});
@@ -410,7 +410,7 @@ sub playlist {
 
     $i++;
 
-    my $w = "\e[1m$c[6]";
+    my $w = "$c[15]$c[6]";
     if($i % 2 == 0) {
       $w = "$c[8]\e[0m";
     }
@@ -423,7 +423,7 @@ sub playlist {
     $crnt_artist =~ s/(\w+)/\u\L$1/g;
 
     if($mpd->current->pos == ($i - 1)) {
-      $w = "\e[1m$c[4]";
+      $w = "$c[15]$c[4]";
       printf("$w%4d\e[0m $w$c[4]%25.25s$c[8]▕$w$c[4]·$c[8]▏$w$c[4]%-47.47s\e[0m\n",
         $i, $artist, $title);
     }
@@ -458,7 +458,7 @@ sub add_playlist {
 
     $mpd->playlist->load(@playlists);
     print "Adding ";
-    print "\e[1m$_\e[0m " for @playlists;
+    print "$c[15]$_\e[0m " for @playlists;
     
     $mpd->play;
   }
@@ -481,7 +481,7 @@ sub list_external {
       open($fh, '<', $full_path) or die("Can not open $full_path: $!");
     }
     while(<$fh>) {
-      print "$c[4]$playlist\e[0m: \e[1m$_\e[0m";
+      print "$c[4]$playlist\e[0m: $c[15]$_\e[0m";
     }
     close($fh);
   }
@@ -513,7 +513,7 @@ sub cp {
 
   if(copy("$basedir/$file", $dest)) {
     my($basename) = $file =~ m;.+/(.+)$;;
-    printf("$c[4]\e[1m%s\e[0m\e[1m => \e[0m$c[6]%s\e[0m\n",
+    printf("$c[4]$c[15]%s\e[0m$c[15] => \e[0m$c[6]%s\e[0m\n",
       $basename, $dest);
   }
   else {
@@ -547,7 +547,7 @@ sub is_existing_dir {
   }
   elsif(! -d $dir) {
     if(make_path($dir, 1, 0777)) {
-      print "$c[5]>>\e[0m\e[1m $dir\e[0m created\n\n";
+      print "$c[5]>>\e[0m$c[15] $dir\e[0m created\n\n";
     }
     else {
       print STDERR "Could not mkdir $dir: $!\n";
@@ -562,7 +562,7 @@ sub cp_album {
 
   if(! -d $dest) {
     if(make_path("$dest", 1, 0777)) {
-      print "$dest \e[1mcreated\e[0m";
+      print "$dest $c[15]created\e[0m";
     }
     else {
       print STDERR "Could not create $dest: $!\n";
@@ -588,13 +588,13 @@ sub cp_album {
     print "ALBNAME: $albname\n";
   } if($DEBUG);
 
-  printf("$c[13]\e[1m%50.50s\e[0m\e[1m => \e[0m$c[3]%s\e[0m\n",
+  printf("$c[13]$c[15]%50.50s\e[0m$c[15] => \e[0m$c[3]%s\e[0m\n",
     $albname, $dest);
 
 
   if(defined($remote_host)) {
     if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
-      print "\nTransfer of \e[1m$albname\e[0m finished\n";
+      print "\nTransfer of $c[15]$albname\e[0m finished\n";
     }
     else {
       print STDERR "$!\n";
@@ -638,7 +638,7 @@ sub is_existing_list {
 
       my $i = 0;
       for my $choice(@choices) {
-        printf("\e[1m%3d\e[0m %s\n", $i, $choice);
+        printf("$c[15]%3d\e[0m %s\n", $i, $choice);
         $i++;
       }
       print "choice: ";
@@ -701,7 +701,7 @@ sub cp_list {
     else {
       my($basename) = $file =~ m;.+/(.+)$;;
       if(copy($full, $dest)) {
-        printf("[$c[6]%5.11s\e[0m] %50.50s \e[1m => \e[0m %s\n",
+        printf("[$c[6]%5.11s\e[0m] %50.50s $c[15] => \e[0m %s\n",
           $playlist_map{$file}, $basename, $dest);
       }
       else {
@@ -745,7 +745,7 @@ sub favlist {
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
       "printf \"%s\n\" $filepath >> $history_path.m3u") == 0 or croak($!);
 
-    printf("$c[1]%s\e[0m\e[1m >> $ssh_host:$c[3]%s\e[0m\n",
+    printf("$c[1]%s\e[0m$c[15] >> $ssh_host:$c[3]%s\e[0m\n",
       $basename, "$fullpath.m3u");
     return(0);
   }
@@ -759,7 +759,7 @@ sub favlist {
   print $fh "$filepath\n";
   close($fh);
 
-  printf("$c[1]%s\e[0m\e[1m >> \e[0m$c[3]%s.m3u\e[0m\n",
+  printf("$c[1]%s\e[0m$c[15] >> \e[0m$c[3]%s.m3u\e[0m\n",
     $basename, $fullpath);
   return(0);
 }
@@ -771,7 +771,7 @@ sub list_albums {
   for(sort(@albums)) {
     print "$_\n";
   }
-  printf("\n$c[0]\e[1m%s\e[0m is featured on \e[1m%d\e[0m albums\n",
+  printf("\n$c[0]$c[15]%s\e[0m is featured on $c[15]%d\e[0m albums\n",
     $artist, scalar(@albums),
   );
 }
@@ -787,7 +787,7 @@ sub play_from_list {
     print STDERR "Integers only, please.\n";
   }
   if($choice > $mpd->status->playlistlength) {
-    print STDERR "There are \e[1m" . $mpd->status->playlistlength
+    print STDERR "There are $c[15]" . $mpd->status->playlistlength
       . "\e[0m songs in the playlist. Pick one of them!\n";
       return(1);
   }
@@ -944,7 +944,7 @@ sub shell {
         print STDERR "@_[0] is not a valid integer\n";
         @_[0] = 100;
       }
-      print "Adding \e[1m@_\e[0m random tracks to the playlist...\n";
+      print "Adding $c[15]@_\e[0m random tracks to the playlist...\n";
       randomize(@_);
     },
 
@@ -1087,16 +1087,16 @@ sub shell {
     'ra'        => sub {
       $mpd->random;
       my $status =  ($mpd->status->random)
-        ? "Random: \e[1mOn\e[0m"
-        : "Random: \e[1mOff\e[0m";
+        ? "Random: $c[15]On\e[0m"
+        : "Random: $c[15]Off\e[0m";
       print "$status\n";
     },
 
     're'        => sub {
       $mpd->repeat;
       my $status = ($mpd->status->repeat)
-        ? "Repeat: \e[1mOn\e[0m"
-        : "Repeat: \e[1mOff\e[0m";
+        ? "Repeat: $c[15]On\e[0m"
+        : "Repeat: $c[15]Off\e[0m";
       print "$status\n";
     },
 
@@ -1107,7 +1107,7 @@ sub shell {
   };
 
   while(1) {
-    print "$c[6]pimpd\e[1m>\e[0m\e[1m$c[0] ";
+    print "$c[6]pimpd$c[15]>\e[0m$c[15]$c[0] ";
     chomp(my $choice = <STDIN>);
     print "\e[0m";
     ($cmd) = $choice =~ m/^(\w+)/;
@@ -1122,7 +1122,7 @@ sub shell {
     }
     else {
       $opts->{h}->();
-      print STDERR "\e[1mNo such option $c[5]$cmd\e[0m\n";
+      print STDERR "$c[15]No such option $c[5]$cmd\e[0m\n";
     }
   }
   exit(0);
@@ -1147,11 +1147,11 @@ sub search_playlist {
     if($_ =~ /($search)(.*)/gpi) {
       push(@found, $_->pos);
       # GNU Grep-like coloring
-      print "${^PREMATCH}$c[5]\e[1m$1\e[0m$2\n";
+      print "${^PREMATCH}$c[5]$c[15]$1\e[0m$2\n";
     }
   }
   if(scalar(@found) < 1) {
-    print "No match on \e[1m$search\e[0m in the current playlist\n";
+    print "No match on $c[15]$search\e[0m in the current playlist\n";
     return(1);
   }
   queue(@found);
@@ -1184,7 +1184,7 @@ sub search_album {
   @tracks = map { $_ = $_->file } @tracks;
   pipe_add(@tracks);
 
-  printf(">> $c[6]\e[1m%d\e[0m \e[1malbum\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+  printf(">> $c[6]$c[15]%d\e[0m $c[15]album\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
     scalar(@tracks), $search);
 }
 
@@ -1198,7 +1198,7 @@ sub search_artist {
   @artists = map { $_ = $_->file } @artists;
   pipe_add(@artists);
 
-  printf(">> $c[6]\e[1m%d\e[0m \e[1martist\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+  printf(">> $c[6]$c[15]%d\e[0m $c[15]artist\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
     scalar(@artists), $search);
 }
 
@@ -1212,7 +1212,7 @@ sub search_title  {
   @songs = map { $_ = $_->file } @songs;
   pipe_add(@songs);
 
-  printf(">> $c[6]\e[1m%d\e[0m \e[1msong\e[0m matches for '$c[10]\e[1m%s\e[0m' found\n",
+  printf(">> $c[6]$c[15]%d\e[0m $c[15]song\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
     scalar(@songs), $search);
 }
 
@@ -1251,8 +1251,8 @@ sub current {
   : ("$c[13]$bitrate\e[0m");
 
   if(!defined($artist) or(!defined($song))) {
-    if(-t *STDOUT) { #output to terminal?
-      $current = sprintf("[\e[1m$c[8]%d\e[0m]$c[1]>>$c[9] %s\e[1m%s\e[0m",
+    if(terminal_output()) {
+      $current = sprintf("[$c[15]$c[8]%d\e[0m]$c[1]>>$c[9] %s$c[15]%s\e[0m",
         $pos, "$basedir/", $cu->file);
     }
     else {
@@ -1261,10 +1261,10 @@ sub current {
     }
   }
   else {
-    if(-t *STDOUT) { # FIXME make this a to-be-called function
-      $current = sprintf("[\e[1m$c[8]%d\e[0m]$c[3]>>$c[9] $c[1]\e[1m%s\e[0m - \e[1m$c[3]%s\e[0m ",
+    if(terminal_output()) {
+      $current = sprintf("[$c[15]$c[8]%d\e[0m]$c[3]>>$c[9] $c[1]$c[15]%s\e[0m - $c[15]$c[3]%s\e[0m ",
         $pos, $artist, $song)
-        . sprintf("from \e[1m$c[4]%s\e[0m ($bitrate kbps) [$genre]", $album);
+        . sprintf("from $c[15]$c[4]%s\e[0m ($bitrate kbps) [$genre]", $album);
     }
     else {
       $current = sprintf(" [%d]>> %s - %s from %s [%s]",
@@ -1273,6 +1273,16 @@ sub current {
     }
   }
   return($current);
+}
+
+sub terminal_output {
+  if(-t *STDOUT) {
+    return(1);
+  }
+  else {
+    @c = (); # make sure no escape sequences escape through
+    return(0);
+  }
 }
 
 sub playlist_is_empty {
