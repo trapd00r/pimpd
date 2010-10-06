@@ -456,9 +456,9 @@ sub add_playlist {
       for(@all) {
         $mpd->playlist->load($_);
       }
-
       return(0);
     }
+
     my @playlists = @_;
     @playlists = is_existing_list(@playlists);
 
@@ -727,14 +727,26 @@ sub cp_list {
 sub write_favlist {
   my $artist = $mpd->current->artist // 'undef';
   my $album  = $mpd->current->album  // 'undef';
-  #my $title  = $mpd->current->title  // 'undef';
+  my $title  = $mpd->current->title  // 'undef';
   my $genre  = $mpd->current->genre  // 'undef';
   my $file   = $basedir . '/' . $mpd->current->file;
 
+  my(undef, undef, undef, undef, $month, $year) = localtime(time);
+  $month += 1;
+  $year  += 1900;
+
+  my $favlist_m3u = $playlist_dir . "/" . sprintf("%d-%02d_%s.m3u",
+    $year, $month, $genre);
 
   open(my $fh, '>>', $favlist) or die($!);
-  print $fh "\"$genre\", \"$artist\", \"$album\", \"$file\"\n";
+  print $fh "\"$artist\", \"$album\", \"$title\", \"$file\"\n";
   close($fh);
+
+
+  open(my $fh, '>>', $favlist_m3u) or die($!);
+  print $fh "$file\n";
+  close($fh);
+
 
   return(0);
 }
@@ -746,36 +758,36 @@ sub generate_fav_struct {
   while(<$fh>) {
     chomp;
 
-    my($genre, $artist, $album, $file) = split(/,/, $_);
+    my($artist, $album, $title, $file) = split(/,/, $_);
 
-    $genre  =~ s/"(.+)"/$1/;
     $artist =~ s/"(.+)"/$1/;
     $album  =~ s/"(.+)"/$1/;
+    $title  =~ s/"(.+)"/$1/;
     $file   =~ s/"(.+)"/$1/;
 
-    push(@{$fav_struct{$genre}{$artist}{$album}}, $file)
-      unless($file ~~ @{$fav_struct{$genre}{$artist}{$album}});
+    push(@{$fav_struct{$artist}{$album}{$title}}, $file)
+      unless($file ~~ @{$fav_struct{$artist}{$album}{$title}});
   }
   return(\%fav_struct);
 }
 
 sub parse_favlist {
   my $fav    = shift;
-  my $search = shift // 'emi.em';
+  my($tag, $query) = @_; # album 'Best of';
 
   my $i = 0;
-  for my $genre(keys(%{$fav})) {
-    for my $artist(keys(%{$fav->{$genre}})) {
-      for my $album(keys(%{$fav->{$genre}{$artist}})) {
+  for my $artist(keys(%{$fav})) {
+    for my $album(keys(%{$fav->{$artist}})) {
+      for my $title(keys(%{$fav->{$artist}{$album}})) {
 
 
-        print "\e[1m\e[38;5;160m$album\e[0m:\n";
-        for my $song_on_album(sort(@{$fav->{$genre}{$artist}{$album}})) {
+        print "\e[1m\e[38;5;65m$album\e[0m:\n";
+        for my $song_on_album(sort(@{$fav->{$artist}{$album}{$title}})) {
 
           my($albname) = $song_on_album =~ m;.+/(.+)$;;
 
-          if($albname =~ /($search)(.*)/gpi) {
-            $albname = "${^PREMATCH}$c[3]$c[15]$1\e[0m$2";
+          if($albname =~ /($query)(.*)/gpi) {
+            $albname = "${^PREMATCH}$c[5]$c[15]$1\e[0m$2";
           }
           printf("% 2d\t%s\n", $i, $albname);
           $i++;
@@ -785,29 +797,6 @@ sub parse_favlist {
   }
 }
 
-#sub favlist {
-
-
-#  my $playlist = shift;
-#
-#  if(!defined($playlist))  {
-#    if(!defined($mpd->current->genre) or $mpd->current->genre eq '') {
-#      $playlist = $fallback_playlist;
-#    }
-#    else {
-#      my (undef, undef, undef, undef, $month, $year) = localtime(time);
-#      $month += 1;
-#      $year  += 1900;
-#      $playlist = sprintf("%d-%02d-%s", $year, $month, lc($mpd->current->genre));
-#    }
-#  }
-#
-#  my $filepath = $mpd->current->file;
-#  my $fullpath = "$playlist_dir/$playlist";
-#  my($basename) = $filepath =~ m;.+/(.+)$;;
-#
-#  my $history_path = "$playlist_dir/$history_playlist";
-#
 #  if(defined($remote_host)) {
 #    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 #
@@ -1204,7 +1193,13 @@ sub shell {
 
 sub search_playlist {
   my $search   = shift;
-  my @playlist = $mpd->playlist->as_items;
+
+  my %playlist = undef;
+
+  for($mpd->playlist->as_items) {
+    $playlist{pos}->{$_->pos} = $_->artist . ' ' . $_->album . ' ' . $_->title;
+  }
+
   my @found;
 
   if(invalid_re($search)) {
@@ -1217,15 +1212,19 @@ sub search_playlist {
   # Or maybe compare by album as well. Crap could be live, remixes and what not,
   # even though the title doesnt say so.
   # Or maybe we should just let the user craft their regex good enough :)
-  for(@playlist) {
-    if($_ =~ /($search)(.*)/gpi) {
-      push(@found, $_->pos);
-      # GNU Grep-like coloring
-      print "${^PREMATCH}$c[5]$c[15]$1\e[0m$2\n";
+
+
+  for my $pos(keys(%playlist)) {
+    for my $pos_no(keys(%{$playlist{$pos}})) {
+      if($playlist{$pos}{$pos_no} =~ /($search)(.*)/gpi) {
+        push(@found, $pos_no);
+        print "${^PREMATCH}$c[5]$c[15]$1\e[0m$2\n";
+      }
     }
   }
+
   if(scalar(@found) < 1) {
-    print "No match on $c[15]$search\e[0m in the current playlist\n";
+    print STDERR "No match on '$c[15]$search\e[0m' in the current playlist\n";
     return(1);
   }
   queue(@found);
