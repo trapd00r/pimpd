@@ -13,6 +13,7 @@ use File::Copy;
 use Carp;
 use Pod::Usage;
 use File::Path 'make_path';
+use Data::Dumper;
 
 if($DEBUG) {
   use Data::Dumper;
@@ -85,7 +86,8 @@ our(
 
   @opt_add_playlist,
   $opt_playlist,
-  $opt_favlist,
+  $opt_write_favlist,
+  $opt_parse_favlist,
   $opt_play_from_list,
 
   $opt_monitor,
@@ -104,6 +106,12 @@ our(
   $opt_remote_port,
   $opt_remote_pass,
 );
+
+my(undef, undef, undef, undef, $month, $year) = localtime(time);
+$month += 1;
+$year  += 1900;
+
+my $favlist = "$playlist_dir/" . sprintf("%d-%02d.favlist", $year, $month);
 
 my $e = "\e[38;5";
 
@@ -126,7 +134,8 @@ GetOptions(
   'cp|copy'            => \$opt_run_cp,
   'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
-  'f|favorite'         => \$opt_favlist,
+  'f|favorite'         => \$opt_write_favlist,
+  'fuck'                 => \$opt_parse_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
@@ -249,7 +258,8 @@ if($mpd->status->state eq 'stop') {
 print current(), "\n"                   if $opt_current;
 information()                           if $opt_information;
 playlist()                              if $opt_playlist;
-favlist(shift)                          if $opt_favlist;
+write_favlist(shift)                    if $opt_write_favlist;
+parse_favlist(generate_fav_struct())    if $opt_parse_favlist;
 list_albums()                           if $opt_list_albums;
 play_from_list()                        if $opt_play_from_list;
 monitor()                               if $opt_monitor;
@@ -459,7 +469,7 @@ sub add_playlist {
     $mpd->playlist->load(@playlists);
     print "Adding ";
     print "$c[15]$_\e[0m " for @playlists;
-    
+
     $mpd->play;
   }
 }
@@ -713,56 +723,120 @@ sub cp_list {
   return(0);
 }
 
-sub favlist {
-  my $playlist = shift;
 
-  if(!defined($playlist))  {
-    if(!defined($mpd->current->genre) or $mpd->current->genre eq '') {
-      $playlist = $fallback_playlist;
-    }
-    else {
-      my (undef, undef, undef, undef, $month, $year) = localtime(time);
-      $month += 1;
-      $year  += 1900;
-      $playlist = sprintf("%d-%02d-%s", $year, $month, lc($mpd->current->genre));
-    }
-  }
+sub write_favlist {
+  my $artist = $mpd->current->artist // 'undef';
+  my $album  = $mpd->current->album  // 'undef';
+  #my $title  = $mpd->current->title  // 'undef';
+  my $genre  = $mpd->current->genre  // 'undef';
+  my $file   = $basedir . '/' . $mpd->current->file;
 
-  my $filepath = $mpd->current->file;
-  my $fullpath = "$playlist_dir/$playlist";
-  my($basename) = $filepath =~ m;.+/(.+)$;;
 
-  my $history_path = "$playlist_dir/$history_playlist";
-
-  if(defined($remote_host)) {
-    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-
-    # Lets add the track to the playlist...
-    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
-      "printf \"%s\n\" $filepath >> $fullpath.m3u") == 0 or croak($!);
-
-    # ... and to the history file as well
-    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
-      "printf \"%s\n\" $filepath >> $history_path.m3u") == 0 or croak($!);
-
-    printf("$c[1]%s\e[0m$c[15] >> $ssh_host:$c[3]%s\e[0m\n",
-      $basename, "$fullpath.m3u");
-    return(0);
-  }
-  open(my $fh, '>>', "$fullpath.m3u")
-    or croak("Could not open $fullpath.m3u: $!");
-  print $fh "$filepath\n";
+  open(my $fh, '>>', $favlist) or die($!);
+  print $fh "\"$genre\", \"$artist\", \"$album\", \"$file\"\n";
   close($fh);
 
-  open(my $fh, '>>', "$history_path.m3u")
-    or croak("Could not open $history_path.m3u: $!");
-  print $fh "$filepath\n";
-  close($fh);
-
-  printf("$c[1]%s\e[0m$c[15] >> \e[0m$c[3]%s.m3u\e[0m\n",
-    $basename, $fullpath);
   return(0);
 }
+
+sub generate_fav_struct {
+  my %fav_struct = ();
+
+  open(my $fh, '<', $favlist) or die($!);
+  while(<$fh>) {
+    chomp;
+
+    my($genre, $artist, $album, $file) = split(/,/, $_);
+
+    $genre  =~ s/"(.+)"/$1/;
+    $artist =~ s/"(.+)"/$1/;
+    $album  =~ s/"(.+)"/$1/;
+    $file   =~ s/"(.+)"/$1/;
+
+    push(@{$fav_struct{$genre}{$artist}{$album}}, $file)
+      unless($file ~~ @{$fav_struct{$genre}{$artist}{$album}});
+  }
+  return(\%fav_struct);
+}
+
+sub parse_favlist {
+  my $fav    = shift;
+  my $search = shift // 'emi.em';
+
+  my $i = 0;
+  for my $genre(keys(%{$fav})) {
+    for my $artist(keys(%{$fav->{$genre}})) {
+      for my $album(keys(%{$fav->{$genre}{$artist}})) {
+
+
+        print "\e[1m\e[38;5;160m$album\e[0m:\n";
+        for my $song_on_album(sort(@{$fav->{$genre}{$artist}{$album}})) {
+
+          my($albname) = $song_on_album =~ m;.+/(.+)$;;
+
+          if($albname =~ /($search)(.*)/gpi) {
+            $albname = "${^PREMATCH}$c[3]$c[15]$1\e[0m$2";
+          }
+          printf("% 2d\t%s\n", $i, $albname);
+          $i++;
+        }
+      }
+    }
+  }
+}
+
+#sub favlist {
+
+
+#  my $playlist = shift;
+#
+#  if(!defined($playlist))  {
+#    if(!defined($mpd->current->genre) or $mpd->current->genre eq '') {
+#      $playlist = $fallback_playlist;
+#    }
+#    else {
+#      my (undef, undef, undef, undef, $month, $year) = localtime(time);
+#      $month += 1;
+#      $year  += 1900;
+#      $playlist = sprintf("%d-%02d-%s", $year, $month, lc($mpd->current->genre));
+#    }
+#  }
+#
+#  my $filepath = $mpd->current->file;
+#  my $fullpath = "$playlist_dir/$playlist";
+#  my($basename) = $filepath =~ m;.+/(.+)$;;
+#
+#  my $history_path = "$playlist_dir/$history_playlist";
+#
+#  if(defined($remote_host)) {
+#    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+#
+#    # Lets add the track to the playlist...
+#    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+#      "printf \"%s\n\" $filepath >> $fullpath.m3u") == 0 or croak($!);
+#
+#    # ... and to the history file as well
+#    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+#      "printf \"%s\n\" $filepath >> $history_path.m3u") == 0 or croak($!);
+#
+#    printf("$c[1]%s\e[0m$c[15] >> $ssh_host:$c[3]%s\e[0m\n",
+#      $basename, "$fullpath.m3u");
+#    return(0);
+#  }
+#  open(my $fh, '>>', "$fullpath.m3u")
+#    or croak("Could not open $fullpath.m3u: $!");
+#  print $fh "$filepath\n";
+#  close($fh);
+#
+#  open(my $fh, '>>', "$history_path.m3u")
+#    or croak("Could not open $history_path.m3u: $!");
+#  print $fh "$filepath\n";
+#  close($fh);
+#
+#  printf("$c[1]%s\e[0m$c[15] >> \e[0m$c[3]%s.m3u\e[0m\n",
+#    $basename, $fullpath);
+#  return(0);
+#}
 
 sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
