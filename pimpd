@@ -469,6 +469,7 @@ sub add_playlist {
     $mpd->playlist->load(@playlists);
     print "Adding ";
     print "$c[15]$_\e[0m " for @playlists;
+    print "\n";
 
     $mpd->play;
   }
