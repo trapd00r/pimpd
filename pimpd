@@ -42,6 +42,8 @@ our(
   $basedir,
 
   $playlist_dir,
+  $favlist_db_dir,
+  $favlist_db_global,
   $fallback_playlist,
 
   $portable,
@@ -67,6 +69,8 @@ our(
   $dzen_cmd,
   $dzen_font,
 );
+
+file_exists();
 
 
 # Used for GetOptions()
@@ -111,7 +115,6 @@ my(undef, undef, undef, undef, $month, $year) = localtime(time);
 $month += 1;
 $year  += 1900;
 
-my $favlist = "$playlist_dir/" . sprintf("%d-%02d.favlist", $year, $month);
 
 my $e = "\e[38;5";
 
@@ -469,7 +472,6 @@ sub add_playlist {
     $mpd->playlist->load(@playlists);
     print "Adding ";
     print "$c[15]$_\e[0m " for @playlists;
-    print "\n";
 
     $mpd->play;
   }
@@ -724,6 +726,25 @@ sub cp_list {
   return(0);
 }
 
+sub file_exists {
+  if(defined($ENV{XDG_DATA_HOME})) {
+    if(! -d "$ENV{XDG_DATA_HOME}/pimpd") {
+      make_path("$ENV{XDG_DATA_HOME}/pimpd", 1, 0777);
+    }
+    $favlist_db_dir = "$ENV{XDG_DATA_HOME}/pimpd/";
+  }
+  else {
+    if(! -d "$ENV{HOME}/.local/share/pimpd") {
+      make_path("$ENV{HOME}/.local/share/pimpd", 1, 0777);
+    }
+    $favlist_db_dir = "$ENV{HOME}/.local/share/pimpd";
+  }
+
+  if(!-e $favlist_db_global) {
+    open(my $fh, '>', $favlist_db_global) or warn($!);
+    close($fh);
+  }
+}
 
 sub write_favlist {
   my $artist = $mpd->current->artist // 'undef';
@@ -736,38 +757,54 @@ sub write_favlist {
   $month += 1;
   $year  += 1900;
 
-  my $favlist_m3u = $playlist_dir . "/" . sprintf("%d-%02d_%s.m3u",
-    $year, $month, $genre);
+  my $favlist_db  = $favlist_db_dir
+    . sprintf("%d-%02d.favlist", $year, $month);
 
-  open(my $fh, '>>', $favlist) or die($!);
-  print $fh "\"$artist\", \"$album\", \"$title\", \"$file\"\n";
+  my $favlist_m3u = $playlist_dir . "/"
+    . sprintf("%d-%02d_%s.m3u", $year, $month, $genre);
+
+  # Monthly
+  open(my $fh, '>>', $favlist_db) or die($!);
+  print $fh "\"$artist\", \"$album\", \"$title\", \"$genre\", \"$file\"\n";
   close($fh);
 
+  open(my $fh, '>>', $favlist_db_global) or die($!);
+  print $fh "\"$artist\", \"$album\", \"$title\", \"$genre\", \"$file\"\n";
+  close($fh);
 
+  # Regular m3u
   open(my $fh, '>>', $favlist_m3u) or die($!);
   print $fh "$file\n";
   close($fh);
 
+  print "$c[8]$c[15]'$title'\e[0m => $c[6]$favlist_m3u\e[0m\n";
 
   return(0);
 }
 
 sub generate_fav_struct {
-  my %fav_struct = ();
+  my(undef, undef, undef, undef, $month, $year) = localtime(time);
+  $month += 1;
+  $year  += 1900;
 
-  open(my $fh, '<', $favlist) or die($!);
+  my $favlist_db  = $favlist_db_dir
+    . sprintf("%d-%02d.favlist", $year, $month);
+
+  my %fav_struct = ();
+  open(my $fh, '<', $favlist_db) or die("$favlist_db: $!");
   while(<$fh>) {
     chomp;
 
-    my($artist, $album, $title, $file) = split(/,/, $_);
+    my($artist, $album, $title, $genre, $file) = split(/,/, $_);
 
     $artist =~ s/"(.+)"/$1/;
     $album  =~ s/"(.+)"/$1/;
     $title  =~ s/"(.+)"/$1/;
+    $genre  =~ s/"(.+)"/$1/;
     $file   =~ s/"(.+)"/$1/;
 
-    push(@{$fav_struct{$artist}{$album}{$title}}, $file)
-      unless($file ~~ @{$fav_struct{$artist}{$album}{$title}});
+    push(@{$fav_struct{$artist}{$album}{$title}{$genre}}, $file)
+      unless($file ~~ @{$fav_struct{$artist}{$album}{$title}{$genre}});
   }
   return(\%fav_struct);
 }
@@ -780,23 +817,97 @@ sub parse_favlist {
   for my $artist(keys(%{$fav})) {
     for my $album(keys(%{$fav->{$artist}})) {
       for my $title(keys(%{$fav->{$artist}{$album}})) {
+        for my $genre(keys(%{$fav->{$artist}{$album}{$title}})) {
+          print "\e[1m\e[38;5;65m$album\e[0m:\n";
+          for my $song_on_album(sort(@{$fav->{$artist}{$album}{$title}{$genre}})) {
 
+            my($albname) = $song_on_album =~ m;.+/(.+)$;;
 
-        print "\e[1m\e[38;5;65m$album\e[0m:\n";
-        for my $song_on_album(sort(@{$fav->{$artist}{$album}{$title}})) {
-
-          my($albname) = $song_on_album =~ m;.+/(.+)$;;
-
-          if($albname =~ /($query)(.*)/gpi) {
-            $albname = "${^PREMATCH}$c[5]$c[15]$1\e[0m$2";
+            if($albname =~ /($query)(.*)/gpi) {
+              $albname = "${^PREMATCH}$c[5]$c[15]$1\e[0m$2";
+            }
+            printf("% 2d\t%s\n", $i, $title);
+            $i++;
           }
-          printf("% 2d\t%s\n", $i, $albname);
-          $i++;
         }
       }
     }
   }
 }
+
+sub favlist_stats {
+  my $display_all = shift;
+
+  my(undef, undef, undef, undef, $month, $year) = localtime(time);
+  $month += 1;
+  $year  += 1900;
+  my $favlist_db  = $favlist_db_dir
+    . sprintf("%d-%02d.favlist", $year, $month);
+
+  my(%artists, %albums, %titles, %genres, %files);
+
+  open(my $fh, '<', $favlist_db_global) or die($!);
+  while(<$fh>) {
+
+    my($artist, $album, $title, $genre, $file) = undef;
+
+    $_  =~ m/"(.+)", "(.+)", "(.+)", "(.+)", "(.+)"/;
+
+    # We have to do the checks backwards
+    $file  = (defined($5)) ? $5 : 'undef';
+    $genre = (defined($4)) ? $4 : 'undef';
+    $title = (defined($3)) ? $3 : 'undef';
+    $album = (defined($2)) ? $2 : 'undef';
+    $artist= (defined($1)) ? $1 : 'undef';
+
+
+    #my($artist, $album, $title, $genre, $file) = split(/,/, $_);
+
+    # We're not interested favs with missing tags
+    $artists{$artist}++ unless($artist eq 'undef');
+    $albums{$album}++   unless($album  eq 'undef');
+    $titles{$title}++   unless($title  eq 'undef');
+    $genres{$genre}++   unless($genre  eq 'undef');
+    $files{$file}++;
+  }
+
+  printf("$c[0]$c[15]%20s\e[0m  $c[15]$c[6]%s\e[0m\n", 'Count', 'Artist') unless(!$display_all);
+  for(sort { $artists{$b} <=> $artists{$a} } keys(%artists)) {
+    if($display_all) {
+      printf("$c[15]%20d\e[0m  %s\n", $artists{$_}, $_);
+    }
+    else {
+      printf("Your favorite$c[15] artist\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs",
+        $_, $artists{$_});
+      last;
+    }
+  }
+  print "\n";
+  printf("$c[15]$c[6]%27s\e[0m\n", 'Album') unless(!$display_all);
+  for(sort { $albums{$b} <=> $albums{$a} } keys(%albums)) {
+    if($display_all) {
+      printf("$c[15]%20d\e[0m %s\n", $albums{$_}, $_);
+    }
+    else {
+      printf("Your favorite $c[15] album\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs\n",
+        $_, $albums{$_});
+      last;
+    }
+  }
+  print "\n";
+  printf("$c[15]$c[6]%27s\e[0m\n", 'Genre') unless(!$display_all);
+  for(sort { $genres{$b} <=> $genres{$a} } keys(%genres)) {
+    if($display_all) {
+      printf("$c[15]%20d\e[0m %s\n", $genres{$_}, $_);
+    }
+    else {
+      printf("Your favorite $c[15] genre\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs\n",
+        $_, $genres{$_});
+      last;
+    }
+  }
+}
+
 
 #  if(defined($remote_host)) {
 #    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
@@ -1025,7 +1136,15 @@ sub shell {
         print STDERR "Nothing is playing - playlist is empty\n";
         return(1);
       }
-      favlist(@_);
+      write_favlist(@_);
+    },
+    'favstats'  => sub {
+      if($_[0] eq 'all') {
+        favlist_stats(1);
+      }
+      else {
+        favlist_stats(0);
+      }
     },
 
     'play'      => sub {
@@ -1214,11 +1333,15 @@ sub search_playlist {
   # even though the title doesnt say so.
   # Or maybe we should just let the user craft their regex good enough :)
 
-
+  # 'pos'
   for my $pos(keys(%playlist)) {
-    for my $pos_no(keys(%{$playlist{$pos}})) {
+    # 42
+    for my $pos_no(keys(%{$playlist{$pos}})) { # 42
+      # Laleh Me and Simon Big City Love
       if($playlist{$pos}{$pos_no} =~ /($search)(.*)/gpi) {
         push(@found, $pos_no);
+
+        # GNU Grep like color-matching
         print "${^PREMATCH}$c[5]$c[15]$1\e[0m$2\n";
       }
     }
