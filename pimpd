@@ -138,7 +138,8 @@ GetOptions(
   'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_write_favlist,
-  'fuck'                 => \$opt_parse_favlist,
+  'fs|favstats:s'      => sub { shift; favlist_stats(shift); },
+#'fuck'                 => \$opt_parse_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
@@ -877,37 +878,37 @@ sub favlist_stats {
       printf("$c[15]%20d\e[0m  %s\n", $artists{$_}, $_);
     }
     else {
-      printf("Your favorite$c[15] artist\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs",
-        $_, $artists{$_});
+      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
+        'Your favorite', 'artist', 'are', $_, 'with', $artists{$_},
+        'loved songs');
       last;
     }
   }
-  print "\n";
   printf("$c[15]$c[6]%27s\e[0m\n", 'Album') unless(!$display_all);
   for(sort { $albums{$b} <=> $albums{$a} } keys(%albums)) {
     if($display_all) {
       printf("$c[15]%20d\e[0m %s\n", $albums{$_}, $_);
     }
     else {
-      printf("Your favorite $c[15] album\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs\n",
-        $_, $albums{$_});
+      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
+        'Your favorite', ' album', 'are', $_, 'with', $albums{$_},
+        'loved songs');
       last;
     }
   }
-  print "\n";
   printf("$c[15]$c[6]%27s\e[0m\n", 'Genre') unless(!$display_all);
   for(sort { $genres{$b} <=> $genres{$a} } keys(%genres)) {
     if($display_all) {
       printf("$c[15]%20d\e[0m %s\n", $genres{$_}, $_);
     }
     else {
-      printf("Your favorite $c[15] genre\e[0m are $c[5]%s\e[0m with $c[2]$c[15]%d\e[0m loved songs\n",
-        $_, $genres{$_});
+      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
+        'Your favorite', ' genre', 'are', $_, 'with', $genres{$_},
+        'loved songs');
       last;
     }
   }
 }
-
 
 #  if(defined($remote_host)) {
 #    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
@@ -1317,6 +1318,7 @@ sub search_playlist {
   my %playlist = undef;
 
   for($mpd->playlist->as_items) {
+    # http://sv.wikipedia.org/wiki/Fulhack
     $playlist{pos}->{$_->pos} = $_->artist . ' ' . $_->album . ' ' . $_->title;
   }
 
@@ -1614,6 +1616,7 @@ regular functionality one would expect.
                           location
   -f,     --fav           favorize the current track. If no name for the playlist
                           is specified, the GENRE id3-tag is used
+  -fs,    --favstats      generate statistics based on previous favorizations
   -l,     --listalbums    list all albums by artist
   -lsp,   --list-pl       list all available playlists
   -p,     --playlist      show the current playlist
