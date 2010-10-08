@@ -85,6 +85,7 @@ our(
   $opt_search_title,
   $opt_search_playlist,
   $opt_search_db,
+  $opt_search_all_playlists,
 
   $opt_randomize,
 
@@ -161,6 +162,7 @@ GetOptions(
   'sal|search-album=s' => \$opt_search_album,
   'sar|search-artist=s'=> \$opt_search_artist,
   'set|search-title=s' => \$opt_search_title,
+  'sap|favsearch=s'    => \$opt_search_all_playlists,
   'no-color|nocolor'   => \$opt_color,
   'host:s'             => \$opt_remote_host,
   'port:s'             => \$opt_remote_port,
@@ -284,19 +286,20 @@ if($opt_monitor_d) {
     monitor();
   }
 }
-randomize($opt_randomize)               if $opt_randomize;
-add_playlist(0, @opt_add_playlist)      if @opt_add_playlist;
-queue(@opt_queue)                       if @opt_queue;
-shell()                                 if $opt_shell;
-list_external(@opt_list_external)       if @opt_list_external;
-search_playlist($opt_search_playlist)   if $opt_search_playlist;
+randomize($opt_randomize)                       if $opt_randomize;
+add_playlist(0, @opt_add_playlist)              if @opt_add_playlist;
+queue(@opt_queue)                               if @opt_queue;
+shell()                                         if $opt_shell;
+list_external(@opt_list_external)               if @opt_list_external;
+search_playlist($opt_search_playlist)           if $opt_search_playlist;
 
-search_db($opt_search_db)               if $opt_search_db;
-search_album($opt_search_album)         if $opt_search_album;
-search_artist($opt_search_artist)       if $opt_search_artist;
-search_title($opt_search_title)         if $opt_search_title;
-cp_list($opt_cp_list)                   if $opt_cp_list;
-cp_album()                              if $opt_cp_album;
+search_db($opt_search_db)                       if $opt_search_db;
+search_album($opt_search_album)                 if $opt_search_album;
+search_artist($opt_search_artist)               if $opt_search_artist;
+search_title($opt_search_title)                 if $opt_search_title;
+search_all_playlists($opt_search_all_playlists) if $opt_search_all_playlists;
+cp_list($opt_cp_list)                           if $opt_cp_list;
+cp_album()                                      if $opt_cp_album;
 
 sub information {
   my %current = ('artist'     =>  $mpd->current->artist,
@@ -454,6 +457,40 @@ sub playlist {
   print "\n" . current('show'), "\n";
 }
 
+sub search_all_playlists {
+  my $query = shift;
+
+  if(!defined($query) or $query eq '') {
+    print STDERR "No query specified\n";
+    return 1;
+  }
+  if(invalid_re($query)) {
+    print STDERR "$query is not valid regex. See 'perldoc perlretut'\n";
+    return 1;
+  }
+
+  my @matched_files;
+
+  open(my $fh, '<', $favlist_db_global) or die($!);
+  while(<$fh>) {
+    if($_ =~ /$query/i) {
+      my ($artist, $album, $title, $genre, $file)
+        = $_ =~ /"(.+)", "(.+)", "(.+)", "(.+)", "(.+)"/;
+
+      printf("$c[15]%25.25s\e[0m $c[3]%-47.47s\e[0m\n", $artist, $title);
+
+      # Fulhack. The absolute path might be needed for other applications and
+      # that's the reason why the basedir is here in the first place
+      # MPD doesnt like it though.
+      $file =~ s;$basedir/;;;
+      push(@matched_files, $file);
+    }
+  }
+  close($fh);
+  $mpd->playlist->add(@matched_files);
+  return 0;
+}
+
 sub add_playlist {
   my $clear_or_not = shift; # clear playlist?
   if(@_) {
@@ -465,13 +502,13 @@ sub add_playlist {
       for(@all) {
         $mpd->playlist->load($_);
       }
-      return(0);
+      return 0;
     }
 
     my @playlists = @_;
     @playlists = is_existing_list(@playlists);
 
-    return(1) if(!@playlists);
+    return 1 if(!@playlists);
 
     $mpd->playlist->clear if($clear_or_not > 0);
 
@@ -504,7 +541,7 @@ sub list_external {
     }
     close($fh);
   }
-  return(0);
+  return 0;
 }
 
 sub scp {
@@ -513,7 +550,7 @@ sub scp {
   $src  =~ s/([ '"&;|])/\\$1/g;
   $dest =~ s/([ '"&;|])/\\$1/g;
   system('scp', '-r',  "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
-  return(0);
+  return 0;
 }
 
 sub cp {
@@ -538,7 +575,7 @@ sub cp {
   else {
     print STDERR "cp: $basedir/$file $!\n";
   }
-  return(0);
+  return 0;
 }
 
 sub is_existing_dir {
@@ -552,7 +589,7 @@ sub is_existing_dir {
 
     if(lc($choice ne 'y')) {
       print STDERR "Bailing out\n";
-      return(1);
+      return 1;
     }
     else {
       if(unlink($dir)) {
@@ -560,7 +597,7 @@ sub is_existing_dir {
       }
       else {
         print STDERR "Could not remove $dir: $!\n";
-        return(1);
+        return 1;
       }
     }
   }
@@ -585,12 +622,12 @@ sub cp_album {
     }
     else {
       print STDERR "Could not create $dest: $!\n";
-      return(1);
+      return 1;
     }
   }
 
   my $file  = $mpd->current->file;
-  return(1) if(!$file);
+  return 1 if(!$file);
 
   my $path  = "$basedir/$file";
   my($basename) = $path  =~ m;.+/(.+)$;;
@@ -627,11 +664,11 @@ sub cp_album {
       }
       else {
         print STDERR "$_: $!\n";
-        return(1);
+        return 1;
       }
     }
   }
-  return(0);
+  return 0;
 }
 
 sub is_existing_list {
@@ -673,7 +710,7 @@ sub is_existing_list {
       }
       else {
         print STDERR "$answer is not valid\n";
-        return(1);
+        return 1;
       }
     }
   }
@@ -725,11 +762,11 @@ sub cp_list {
       }
       else {
         print STDERR "cp_list(): $!\n";
-        return(1);
+        return 1;
       }
     }
   }
-  return(0);
+  return 0;
 }
 
 sub file_exists {
@@ -785,7 +822,7 @@ sub write_favlist {
 
   print "$c[8]$c[15]'$title'\e[0m => $c[6]$favlist_m3u\e[0m\n";
 
-  return(0);
+  return 0;
 }
 
 sub generate_fav_struct {
@@ -869,7 +906,7 @@ sub favlist_stats {
 
     #my($artist, $album, $title, $genre, $file) = split(/,/, $_);
 
-    # We're not interested favs with missing tags
+    # We're not interested in favs with missing tags
     $artists{$artist}++ unless($artist eq 'undef');
     $albums{$album}++   unless($album  eq 'undef');
     $titles{$title}++   unless($title  eq 'undef');
@@ -892,7 +929,7 @@ sub favlist_stats {
   printf("$c[15]$c[6]%27s\e[0m\n", 'Album') unless(!$display_all);
   for(sort { $albums{$b} <=> $albums{$a} } keys(%albums)) {
     if($display_all) {
-      printf("$c[15]%20d\e[0m %s\n", $albums{$_}, $_);
+      printf("$c[15]%20d\e[0m  %s\n", $albums{$_}, $_);
     }
     else {
       printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
@@ -904,7 +941,7 @@ sub favlist_stats {
   printf("$c[15]$c[6]%27s\e[0m\n", 'Genre') unless(!$display_all);
   for(sort { $genres{$b} <=> $genres{$a} } keys(%genres)) {
     if($display_all) {
-      printf("$c[15]%20d\e[0m %s\n", $genres{$_}, $_);
+      printf("$c[15]%20d\e[0m  %s\n", $genres{$_}, $_);
     }
     else {
       printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
@@ -928,7 +965,7 @@ sub favlist_stats {
 #
 #    printf("$c[1]%s\e[0m$c[15] >> $ssh_host:$c[3]%s\e[0m\n",
 #      $basename, "$fullpath.m3u");
-#    return(0);
+#    return 0;
 #  }
 #  open(my $fh, '>>', "$fullpath.m3u")
 #    or croak("Could not open $fullpath.m3u: $!");
@@ -942,7 +979,7 @@ sub favlist_stats {
 #
 #  printf("$c[1]%s\e[0m$c[15] >> \e[0m$c[3]%s.m3u\e[0m\n",
 #    $basename, $fullpath);
-#  return(0);
+#  return 0;
 #}
 
 sub list_albums {
@@ -991,7 +1028,7 @@ sub play_from_list {
   if($choice > $mpd->status->playlistlength) {
     print STDERR "There are $c[15]" . $mpd->status->playlistlength
       . "\e[0m songs in the playlist. Pick one of them!\n";
-      return(1);
+      return 1;
   }
   $mpd->play($choice-1);
   print current(), "\n";
@@ -1045,7 +1082,7 @@ sub monitor {
 
   while(1) {
     my $current = $mpd->current;
-    return(1) if(!defined($current)); # not running?
+    return 1 if(!defined($current)); # not running?
     my $output;
     if($opt_monitor_d) {
       my $artist = $mpd->current->artist // 'undef';
@@ -1094,12 +1131,12 @@ sub queue {
   my @to_play = @_;
   if(scalar(@to_play < 1)) {
     print STDERR "The queue function requires at least one song \n";
-    return(1);
+    return 1;
   }
   for(@to_play) {
     if(invalid_pos($_)) {
       print STDERR "$c[5]$_\e[0m: invalid position\n";
-      return(1);
+      return 1;
     }
   }
 
@@ -1128,7 +1165,7 @@ sub queue {
     ) if(scalar(@to_play) != $argc);
 
     if(scalar(@to_play) == 1) {
-      return(0);
+      return 0;
     }
     sleep($time);
   }
@@ -1153,7 +1190,7 @@ sub shell {
     'list'      => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty\n";
-        return(1);
+        return 1;
       }
       playlist();
     },
@@ -1161,7 +1198,7 @@ sub shell {
     'fav'       => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       write_favlist(@_);
     },
@@ -1182,7 +1219,7 @@ sub shell {
     'cp'        => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       cp();
     },
@@ -1190,7 +1227,7 @@ sub shell {
     'cpa'       => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       cp_album();
     },
@@ -1199,7 +1236,7 @@ sub shell {
     'i'         => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       information();
     },
@@ -1207,7 +1244,7 @@ sub shell {
     'mon'       => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty - there's nothing to monitor\n";
-        return(1);
+        return 1;
       }
       monitor();
     },
@@ -1237,10 +1274,15 @@ sub shell {
       search_playlist($search);
     },
 
+    'sap'       => sub {
+      my $search = join(' ', @_);
+      search_all_playlists($search);
+    },
+
     'l'         => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       list_albums();
     },
@@ -1254,7 +1296,7 @@ sub shell {
     'n'         => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty!\n";
-        return(1);
+        return 1;
       }
       $mpd->next;
       print current() . "\n";
@@ -1263,7 +1305,7 @@ sub shell {
     'p'         => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty!\n";
-        return(1);
+        return 1;
       }
       $mpd->prev;
       print current() . "\n";
@@ -1282,7 +1324,7 @@ sub shell {
     'np'        => sub {
       if(playlist_is_empty()) {
         print STDERR "Nothing is playing - playlist is empty\n";
-        return(1);
+        return 1;
       }
       print current() . "\n";
     },
@@ -1290,7 +1332,7 @@ sub shell {
     'q'         => sub {
       if(invalid_pos(@_)) {
         printf("No such song%s\n", (@_ < 1) ? 's' : '');
-        return(1);
+        return 1;
       }
       queue(@_);
     },
@@ -1353,7 +1395,7 @@ sub search_playlist {
 
   if(invalid_re($search)) {
     print STDERR "'$search' is not valid regex. See 'perldoc perlretut'\n";
-    return(1);
+    return 1;
   }
 
   # NOTE Should we ignore dupes?
@@ -1378,7 +1420,7 @@ sub search_playlist {
 
   if(scalar(@found) < 1) {
     print STDERR "No match on '$c[15]$search\e[0m' in the current playlist\n";
-    return(1);
+    return 1;
   }
   queue(@found);
 }
@@ -1388,7 +1430,7 @@ sub search_db {
 
   if(invalid_re($search)) {
     print STDERR "'$search' is not valid regex. See 'perldoc perlretut'\n";
-    return(1);
+    return 1;
   }
 
   for($mpd->collection->all_pathes) {
@@ -1405,7 +1447,7 @@ sub search_album {
   my @tracks = $mpd->collection->songs_from_album_partial($search);
   if(!@tracks) {
     print ">> $c[2]$search$c[9]: no tracks found\n";
-    return(1);
+    return 1;
   }
   @tracks = map { $_ = $_->file } @tracks;
   pipe_add(@tracks);
@@ -1419,7 +1461,7 @@ sub search_artist {
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
     print ">> $c[2]$search$c[9]: nothing found\n";
-    return(1);
+    return 1;
   }
   @artists = map { $_ = $_->file } @artists;
   pipe_add(@artists);
@@ -1433,7 +1475,7 @@ sub search_title  {
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
     print ">> $c[2]$search$c[9]: nothing found\n";
-    return(1);
+    return 1;
   }
   @songs = map { $_ = $_->file } @songs;
   pipe_add(@songs);
@@ -1503,20 +1545,20 @@ sub current {
 
 sub terminal_output {
   if(-t *STDOUT) {
-    return(1);
+    return 1;
   }
   else {
     @c = (); # make sure no escape sequences escape through
-    return(0);
+    return 0;
   }
 }
 
 sub playlist_is_empty {
   if($mpd->playlist->as_items == 0) {
-    return(1);
+    return 1;
   }
   else {
-    return(0);
+    return 0;
   }
 }
 
@@ -1540,10 +1582,10 @@ sub invalid_re {
   my $re = shift;
   eval { qr/$re/ };
   if($@) {
-    return(1);
+    return 1;
   }
   else {
-    return(0);
+    return 0;
   }
 }
 
