@@ -888,7 +888,15 @@ sub generate_fav_struct {
     . sprintf("%d-%02d.favlist", $year, $month);
 
   my %fav_struct = ();
-  open(my $fh, '<', $favlist_db) or die("$favlist_db: $!");
+  my $fh = undef;
+
+  if(defined($remote_host)) {
+    open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$favlist_db_global'\"|")
+      or die($!);
+  }
+  else {
+    open($fh, '<', $favlist_db) or die("$favlist_db: $!");
+  }
   while(<$fh>) {
     chomp;
 
@@ -943,7 +951,16 @@ sub favlist_stats {
 
   my(%artists, %albums, %titles, %genres, %files);
 
-  open(my $fh, '<', $favlist_db_global) or die($!);
+  my $fh = undef;
+
+  if(defined($remote_host)) {
+    open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$favlist_db_global'\"|")
+      or die($!);
+  }
+  else {
+    open($fh, '<', $favlist_db_global) or die("$favlist_db: $!");
+  }
+
   while(<$fh>) {
 
     my($artist, $album, $title, $genre, $file) = undef;
@@ -1056,7 +1073,7 @@ sub list_songs_on_album {
   }
   printf("$c[4]$c[15] %50.50s\e[0m\n", $mpd->current->album);
   for($mpd->collection->songs_from_album($album)) {
-    printf("%s %50.50s %s\n", $_->track, $_->title, sec_and_min($_->time));
+    printf("% 3s %50.50s %s\n", $_->track, $_->title, sec_and_min($_->time));
   }
   return 0;
 }
