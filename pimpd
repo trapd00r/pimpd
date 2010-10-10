@@ -72,7 +72,6 @@ our(
 
 file_exists();
 
-
 # Used for GetOptions()
 our(
   @opt_queue,
@@ -769,8 +768,36 @@ sub cp_list {
   return 0;
 }
 
+
 sub file_exists {
-  if(defined($ENV{XDG_DATA_HOME})) {
+  my $rc = undef;
+  if(defined($remote_host)) {
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+       'test', '-d', $ENV{XDG_DATA_HOME}
+     );
+    $rc = $?;
+
+    if($rc == 1) { # XDG_DATA_HOME is defined
+      $rc = undef;
+      system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+        'test', '-d', "$ENV{XDG_DATA_HOME}/pimpd"
+      );
+      $rc = $?;
+      if($rc == 0) { # the pimpd dir doesnt exist
+        system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+          'mkdir', '-p', "$ENV{XDG_DATA_HOME}/pimpd"
+        );
+        $favlist_db_dir = `ssh -p $ssh_port $ssh_user\@$ssh_host \"printf $ENV{XDG_DATA_HOME}/pimpd\"`;
+      }
+    }
+    else {
+      system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+        'mkdir', '-p', "$ENV{HOME}/.local/share/pimpd"
+      );
+      $favlist_db_dir = `ssh -p $ssh_port $ssh_user\@$ssh_host \"printf $ENV{HOME}/.local/share/pimpd\"`;
+    }
+  }
+  elsif(defined($ENV{XDG_DATA_HOME})) {
     if(! -d "$ENV{XDG_DATA_HOME}/pimpd") {
       make_path("$ENV{XDG_DATA_HOME}/pimpd", 1, 0777);
     }
@@ -800,17 +827,44 @@ sub write_favlist {
   $month += 1;
   $year  += 1900;
 
-  my $favlist_db  = $favlist_db_dir
+  my $favlist_db_monthly  = $favlist_db_dir
     . sprintf("%d-%02d.favlist", $year, $month);
 
   my $favlist_m3u = $playlist_dir . "/"
     . sprintf("%d-%02d_%s.m3u", $year, $month, $genre);
 
+
+  my $fh = undef;
+
+  if(defined($remote_host)) {
+    # 'Illegal seek'... why? It seems to work anyway, so dont die here, for now
+    # Regular m3u
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+      "echo $file >> $favlist_m3u"
+      );
+    printf("$c[3]%s\e[0m\e[1m >> \e[0m %s\n", $file, "\e[1m$ssh_host\e[0m:$favlist_m3u");
+
+    # Full DB
+    my $full_str = sprintf("\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"",
+      $artist, $album, $title, $genre, $file
+    );
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+      "echo '$full_str' >> $favlist_db_global"
+    );
+
+    # Monthly
+    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+      "echo '$full_str' >> $favlist_db_monthly"
+    );
+    return 0;
+  }
+
   # Monthly
-  open(my $fh, '>>', $favlist_db) or die($!);
+  open(my $fh, '>>', $favlist_db_monthly) or die($!);
   print $fh "\"$artist\", \"$album\", \"$title\", \"$genre\", \"$file\"\n";
   close($fh);
 
+  # Full DB
   open(my $fh, '>>', $favlist_db_global) or die($!);
   print $fh "\"$artist\", \"$album\", \"$title\", \"$genre\", \"$file\"\n";
   close($fh);
@@ -1710,6 +1764,8 @@ regular functionality one would expect.
                           the current playlist
   -set,   --search-title  search the database for title and add the results to
                           the current playlist
+  -sap,   --favsearch     search through all added favorites and add the results
+                          to the current playlist
   -no,    --no-color      turn colors off (C)
           --mpd-kill      shut down the MPD server
           --host          remote MPD host (C)
