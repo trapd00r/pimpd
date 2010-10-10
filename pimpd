@@ -142,7 +142,15 @@ GetOptions(
   'fs|favstats:s'      => sub { shift; favlist_stats(shift); },
 #'fuck'                 => \$opt_parse_favlist,
   'l|listalbums'       => \$opt_list_albums,
-  'lsa|listsongs'      => \$opt_list_songs_on_album,
+  'lsa|listsongs:i'    => sub
+  {
+    shift;
+    $opt_list_songs_on_album = shift;
+    if(!defined($opt_list_songs_on_album) or $opt_list_songs_on_album == 0) {
+      # fulhack
+      $opt_list_songs_on_album = 'nothing to add';
+    }
+  },
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
@@ -217,7 +225,7 @@ sub shell_msg_help {
         fav       NIL  add the current track to the favorites
         favstats  NIL  generate statistics from all favlists
         list      NIL  show the current playlist
-        lsa       NIL  list all songs on the current album
+        lsa       (n)  list all songs on the current album
         i         NIL  show now playing information
         np        NIL  show the currently playing track
         cp        NIL  copy the currently playing track to specifed location
@@ -264,15 +272,15 @@ if($mpd->status->state eq 'stop') {
   $mpd->play;
 }
 
-print current(), "\n"                   if $opt_current;
-information()                           if $opt_information;
-playlist()                              if $opt_playlist;
-write_favlist(shift)                    if $opt_write_favlist;
-parse_favlist(generate_fav_struct())    if $opt_parse_favlist;
-list_albums()                           if $opt_list_albums;
-list_songs_on_album()                   if $opt_list_songs_on_album;
-play_from_list()                        if $opt_play_from_list;
-monitor()                               if $opt_monitor;
+print current(), "\n"                         if $opt_current;
+information()                                 if $opt_information;
+playlist()                                    if $opt_playlist;
+write_favlist(shift)                          if $opt_write_favlist;
+parse_favlist(generate_fav_struct())          if $opt_parse_favlist;
+list_albums()                                 if $opt_list_albums;
+list_songs_on_album($opt_list_songs_on_album) if $opt_list_songs_on_album;
+play_from_list()                              if $opt_play_from_list;
+monitor()                                     if $opt_monitor;
 
 if($opt_monitor_d) {
   if(!defined($daemon_cmd)) {
@@ -1066,14 +1074,33 @@ sub list_albums {
 }
 
 sub list_songs_on_album {
+  my $num = shift;
+
   my $album = $mpd->current->album;
   if(!defined($album) or $album eq '') {
     print STDERR "Album tag missing!\n";
     return 1;
   }
-  printf("$c[4]$c[15] %50.50s\e[0m\n", $mpd->current->album);
-  for($mpd->collection->songs_from_album($album)) {
-    printf("% 3s %50.50s %s\n", $_->track, $_->title, sec_and_min($_->time));
+  my @tracks = $mpd->collection->songs_from_album($album);
+  my $i = 0;
+  printf("$c[4]$c[15] %50.50s\e[0m\n", $album);
+
+  for(@tracks) {
+    printf("% 3s %50.50s %s\n", $i, $_->title, sec_and_min($_->time));
+    $i++;
+  }
+  if(defined($num) and $num ne 'nothing to add') {
+    if($num > scalar(@tracks)) {
+      print STDERR "There are "
+        . scalar(@tracks)
+        . " songs on \e[1m$c[1]$album\e[0m\n";
+      return 1;
+    }
+    my $file = $tracks[$num]->file;
+    $mpd->playlist->add($file);
+    printf("\e[1mAdded\e[0m $c[1]%s\e[0m - %s\n",
+      $tracks[$num]->artist, $tracks[$num]->title,
+    );
   }
   return 0;
 }
@@ -1357,7 +1384,7 @@ sub shell {
       }
       list_albums();
     },
-    'lsa'       => sub { list_songs_on_album(); },
+    'lsa'       => sub { list_songs_on_album(@_); },
 
     'e'         => sub { list_external(@_); },
     'add'       => sub {
@@ -1758,7 +1785,8 @@ regular functionality one would expect.
                           is specified, the GENRE id3-tag is used
   -fs,    --favstats      generate statistics based on previous favorizations
   -l,     --listalbums    list all albums by artist
-  -lsa,   --listsongs     list all songs on the current album
+  -lsa,   --listsongs     list all songs on the current album. An optional integer
+                          argument will add that song to the current playlist
   -lsp,   --list-pl       list all available playlists
   -p,     --playlist      show the current playlist
   -t,     --track         play track number n from playlist
