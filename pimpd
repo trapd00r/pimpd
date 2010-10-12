@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.8-next';
+our $VERSION  = '1.6.9';
 
 use strict;
 my $DEBUG = 0;
@@ -1047,36 +1047,6 @@ sub favlist_stats {
   }
 }
 
-#  if(defined($remote_host)) {
-#    $filepath =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-#
-#    # Lets add the track to the playlist...
-#    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
-#      "printf \"%s\n\" $filepath >> $fullpath.m3u") == 0 or croak($!);
-#
-#    # ... and to the history file as well
-#    system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
-#      "printf \"%s\n\" $filepath >> $history_path.m3u") == 0 or croak($!);
-#
-#    printf("$c[1]%s\e[0m$c[15] >> $ssh_host:$c[3]%s\e[0m\n",
-#      $basename, "$fullpath.m3u");
-#    return 0;
-#  }
-#  open(my $fh, '>>', "$fullpath.m3u")
-#    or croak("Could not open $fullpath.m3u: $!");
-#  print $fh "$filepath\n";
-#  close($fh);
-#
-#  open(my $fh, '>>', "$history_path.m3u")
-#    or croak("Could not open $history_path.m3u: $!");
-#  print $fh "$filepath\n";
-#  close($fh);
-#
-#  printf("$c[1]%s\e[0m$c[15] >> \e[0m$c[3]%s.m3u\e[0m\n",
-#    $basename, $fullpath);
-#  return 0;
-#}
-
 sub list_albums {
   my $artist = $ARGV[0] // $mpd->current->artist;
   my @albums = sort($mpd->collection->albums_by_artist($artist));
@@ -1126,6 +1096,7 @@ sub list_songs_on_album {
 sub add_current_album {
   my $clear_or_not = shift;
   my $album = $mpd->current->album;
+
   if(!defined($album) or $album eq '') {
     print STDERR "No album tag\n";
     return 1;
@@ -1134,7 +1105,10 @@ sub add_current_album {
   my @tracks = $mpd->collection->songs_from_album($album);
 
   $mpd->playlist->clear if($clear_or_not);
-  $mpd->playlist->add($_->file) for @tracks;
+  for(@tracks) {
+    printf("%s\n", $_->title);
+    $mpd->playlist->add($_->file);
+  }
 
 }
 
