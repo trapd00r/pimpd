@@ -19,6 +19,11 @@ regular functionality one would expect.
   You can search the database and playlist using regular expressions. There are
   several other (faster) ways to search as well - by artist, album or title.
 
+  Additionally, it's possible to search through all favlists at the same time,
+  adding the matches to the current playlist. Since pimpd internally keeps an
+  csv-style database up to date with the favorized tracks, it's enough to search
+  for artist, album, title, genre, in any combination.
+
 - Randomizing
 
   The 'I am lucky button' - add n randomly picked tracks to the current
@@ -72,51 +77,60 @@ regular functionality one would expect.
 
   All of this works on local MPD servers as well as remote ones.
 
+
 # OPTIONS
 
-    -i,     --info          print all information available
-    -np,    --current       print now playing information on single line
-    -r,     --random        randomize a new playlist with n tracks
-    -cp,    --copy          copy the current track to specified location (C)
-    -cpa,   --cp-album      copy the whole album the current track is featured on
-                            to specified location
-    -cpl,   --cp-list       copy the content of specified playlist to specifed
-                            location
-    -f,     --fav           favorize the current track. If no name for the playlist
-                            is specified, the GENRE id3-tag is used
-    -l,     --listalbums    list all albums by artist
-    -lsp,   --list-pl       list all available playlists
-    -p,     --playlist      show the current playlist
-    -t,     --track         play track number n from playlist
-    -a,     --add           add playlist and play it
-    -m,     --monitor       monitor MPD for song changes (output on STDOUT)
-    -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
-                            output should go is specified in the configuration file.
-    -k,     --kill          kill pimpd when running in daemon mode
-    -q,     --queue         queue specified tracks
-    -e,     --external      list all tracks in external playlist
-    -sh,    --shell         spawn the interactive pimpd shell
-    -spl,   --search-pl     search the current playlist for pattern and queue the
-                            results
-    -sdb,   --search-db     search the database for pattern and add the results to
-                            the current playlist
-    -sar,   --search-artist search the database for artist and add the results to
-                            the current playlist
-    -sal,   --search-album  search the database for album and add the result to
-                            the current playlist
-    -set,   --search-title  search the database for title and add the results to
-                            the current playlist
-    -no,    --no-color      turn colors off (C)
-            --mpd-kill      shut down the MPD server
-            --host          remote MPD host (C)
-            --port          remote MPD port (C)
-            --pass          remote MPD password (C)
-            --ssh-host      remote SSH server host (used for -cp) (C)
-            --ssh-port      remote SSH server port (used for -cp) (C)
-            --ssh-user      remote SSH server user (used for -cp) (C)
+          -i,     --info          print all information available
+          -np,    --current       print now playing information on single line
+          -r,     --random        randomize a new playlist with n tracks
+          -cp,    --copy          copy the current track to specified location (C)
+          -cpa,   --cp-album      copy the whole album the current track is featured on
+                                  to specified location
+          -cpl,   --cp-list       copy the content of specified playlist to specifed
+                                  location
+          -f,     --fav           favorize the current track. If no name for the playlist
+                                  is specified, the GENRE id3-tag is used
+          -fs,    --favstats      generate statistics based on previous favorizations
+          -l,     --listalbums    list all albums by artist
+          -lsa,   --listsongs     list all songs on the current album. An optional integer
+                                  argument will add that song to the current playlist
+          -lsp,   --list-pl       list all available playlists
+          -p,     --playlist      show the current playlist
+          -t,     --track         play track number n from playlist
+          -a,     --add           add playlist and play it. If the first arg is equal to
+                                  'all', all available playlists will be added
+          -aa,    --add-album     add the full album of the currently playing song to
+                                  the current playlist
+          -m,     --monitor       monitor MPD for song changes (output on STDOUT)
+          -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
+                                  output should go is specified in the configuration file.
+          -k,     --kill          kill pimpd when running in daemon mode
+          -q,     --queue         queue specified tracks
+          -e,     --external      list all tracks in external playlist
+          -sh,    --shell         spawn the interactive pimpd shell
+          -spl,   --search-pl     search the current playlist for pattern and queue the
+                                  results
+          -sdb,   --search-db     search the database for pattern and add the results to
+                                  the current playlist
+          -sar,   --search-artist search the database for artist and add the results to
+                                  the current playlist
+          -sal,   --search-album  search the database for album and add the result to
+                                  the current playlist
+          -set,   --search-title  search the database for title and add the results to
+                                  the current playlist
+          -sap,   --favsearch     search through all added favorites and add the results
+                                  to the current playlist
+          -no,    --no-color      turn colors off (C)
+                  --mpd-kill      shut down the MPD server
+                  --host          remote MPD host (C)
+                  --port          remote MPD port (C)
+                  --pass          remote MPD password (C)
+                  --ssh-host      remote SSH server host (used for -cp) (C)
+                  --ssh-port      remote SSH server port (used for -cp) (C)
+                  --ssh-user      remote SSH server user (used for -cp) (C)
 
-    -h,     --help          show the help and exit
-            --man           show the manpage and exit
+          -h,     --help          show the help and exit
+                  --man           show the manpage and exit
 
 # ENVIRONMENT
 
