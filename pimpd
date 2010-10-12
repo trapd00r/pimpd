@@ -1070,13 +1070,7 @@ sub list_songs_on_album {
     return 1;
   }
   my @tracks = $mpd->collection->songs_from_album($album);
-  my $i = 0;
-  printf("$c[4]$c[15] %50.50s\e[0m\n", $album);
 
-  for(@tracks) {
-    printf("% 3s %50.50s %s\n", $i, $_->title, sec_and_min($_->time));
-    $i++;
-  }
   if(defined($num) and $num ne 'nothing to add') {
     if($num > scalar(@tracks)) {
       print STDERR "There are "
@@ -1089,6 +1083,15 @@ sub list_songs_on_album {
     printf("\e[1mAdded\e[0m $c[1]%s\e[0m - %s\n",
       $tracks[$num]->artist, $tracks[$num]->title,
     );
+    return 0;
+  }
+
+  my $i = 0;
+  printf("$c[4]$c[15] %50.50s\e[0m\n", $album);
+
+  for(@tracks) {
+    printf("% 3s %50.50s %s\n", $i, $_->title, sec_and_min($_->time));
+    $i++;
   }
   return 0;
 }
@@ -1728,6 +1731,11 @@ regular functionality one would expect.
 
   You can search the database and playlist using regular expressions. There are
   several other (faster) ways to search as well - by artist, album or title.
+
+  Additionally, it's possible to search through all favlists at the same time,
+  adding the matches to the current playlist. Since pimpd internally keeps an
+  csv-style database up to date with the favorized tracks, it's enough to search
+  for artist, album, title, genre, in any combination.
 
 =head3 Randomizing
 
