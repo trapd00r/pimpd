@@ -106,6 +106,8 @@ our(
   $opt_cp_list,
   $opt_cp_album,
 
+  $opt_add_current_album,
+
   # So we could override configured settings on the commandline
   $opt_remote_host,
   $opt_remote_port,
@@ -140,7 +142,6 @@ GetOptions(
   'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_write_favlist,
   'fs|favstats:s'      => sub { shift; favlist_stats(shift); },
-#'fuck'                 => \$opt_parse_favlist,
   'l|listalbums'       => \$opt_list_albums,
   'lsa|listsongs:i'    => sub
   {
@@ -151,6 +152,7 @@ GetOptions(
       $opt_list_songs_on_album = 'nothing to add';
     }
   },
+  'aa|add-album'       => \$opt_add_current_album,
   'p|playlist'         => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
@@ -174,9 +176,9 @@ GetOptions(
   'host:s'             => \$opt_remote_host,
   'port:s'             => \$opt_remote_port,
   'pass:s'             => \$opt_remote_pass,
-  'ssh_host'           => \$ssh_host,
-  'ssh_port'           => \$ssh_port,
-  'ssh_user'           => \$ssh_user,
+  'ssh_host:s'         => \$ssh_host,
+  'ssh_port:s'         => \$ssh_port,
+  'ssh_user:s'         => \$ssh_user,
 
   'kill'               => \&killkid,
   'mpd-kill'           => sub { $mpd->kill; },
@@ -215,6 +217,7 @@ sub shell_msg_help {
         rand      n    randomize a new playlist with n tracks
         play      n    play track n in playlist
         add       s    add playlist s
+        aa        NIL  add the full album of the currently playing song
         sdb       p    search the database for pattern
         sar       p    search for artists matching pattern
         sal       p    search for albums matching pattern
@@ -293,6 +296,7 @@ if($opt_monitor_d) {
 }
 randomize($opt_randomize)                       if $opt_randomize;
 add_playlist(0, @opt_add_playlist)              if @opt_add_playlist;
+add_current_album()                             if $opt_add_current_album;
 queue(@opt_queue)                               if @opt_queue;
 shell()                                         if $opt_shell;
 list_external(@opt_list_external)               if @opt_list_external;
@@ -667,6 +671,7 @@ sub cp_album {
     for(@files) {
       my ($basename) = $_ =~ m;.+/(.+)$;;
       if(scp($ssh_host, $ssh_port, $_, $dest) == 0) {
+        # Yes, we are abusing STDERR here. Sorry :)
         printf STDERR ("%50.50s\n", $basename);
       }
       else {
@@ -787,7 +792,6 @@ sub cp_list {
   }
   return 0;
 }
-
 
 sub file_exists {
   my $rc = undef;
@@ -1117,6 +1121,21 @@ sub list_songs_on_album {
     );
   }
   return 0;
+}
+
+sub add_current_album {
+  my $clear_or_not = shift;
+  my $album = $mpd->current->album;
+  if(!defined($album) or $album eq '') {
+    print STDERR "No album tag\n";
+    return 1;
+  }
+
+  my @tracks = $mpd->collection->songs_from_album($album);
+
+  $mpd->playlist->clear if($clear_or_not);
+  $mpd->playlist->add($_->file) for @tracks;
+
 }
 
 sub sec_and_min {
@@ -1465,6 +1484,7 @@ sub shell {
       print "$status\n";
     },
 
+    'aa'        => sub { add_current_album(); },
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
     'h'         => sub { shell_msg_help(); },
@@ -1806,6 +1826,8 @@ regular functionality one would expect.
   -t,     --track         play track number n from playlist
   -a,     --add           add playlist and play it. If the first arg is equal to
                           'all', all available playlists will be added
+  -aa,    --add-album     add the full album of the currently playing song to
+                          the current playlist
   -m,     --monitor       monitor MPD for song changes (output on STDOUT)
   -md,    --monitor-d     monitor MPD for song changes in daemon mode. Where the
                           output should go is specified in the configuration file.
