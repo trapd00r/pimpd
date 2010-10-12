@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.7-next';
+our $VERSION  = '1.6.8-next';
 
 use strict;
 my $DEBUG = 0;
@@ -196,9 +196,7 @@ if($opt_remote_host) {
   );
 }
 
-if($opt_color) {
-  @c = (); # when piped to non-shell apps, \033[0m will look ugly
-}
+@c = () if($opt_color); # No collors
 
 cp() if($opt_run_cp);
 
@@ -522,6 +520,7 @@ sub add_playlist {
     $mpd->playlist->load(@playlists);
     print "Adding ";
     print "$c[15]$_\e[0m " for @playlists;
+    print "\n";
 
     $mpd->play;
   }
@@ -656,12 +655,25 @@ sub cp_album {
 
 
   if(defined($remote_host)) {
-    if(scp($ssh_host, $ssh_port, $album, $dest) == 0) {
-      print "\nTransfer of $c[15]$albname\e[0m finished\n";
+    my @files = grep{ /\.(?:mp3|ogg|flac|wav)$/ } `ssh -p $ssh_port $ssh_user\@$ssh_host 'find "$album"'`;
+    for(@files) {
+      chomp;
+      $_ =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
     }
-    else {
-      print STDERR "$!\n";
+
+    open(OLD_STDOUT, '>&', STDOUT) or die($!);
+    close(STDOUT);
+
+    for(@files) {
+      my ($basename) = $_ =~ m;.+/(.+)$;;
+      if(scp($ssh_host, $ssh_port, $_, $dest) == 0) {
+        printf STDERR ("%50.50s\n", $basename);
+      }
+      else {
+        print STDERR "$!\n";
+      }
     }
+    open(STDOUT, '>&', OLD_STDOUT) or die($!);
   }
   else {
     for(grep{ /\.(?:mp3|ogg|flac|wav)$/ } glob("$album/*")) {
@@ -1075,6 +1087,8 @@ sub list_albums {
 
 sub list_songs_on_album {
   my $num = shift;
+
+  #FIXME Add 'all' tracks on album
 
   my $album = $mpd->current->album;
   if(!defined($album) or $album eq '') {
