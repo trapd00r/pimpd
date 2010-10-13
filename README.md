@@ -26,17 +26,18 @@ regular functionality one would expect.
 
 ### Randomizing
 
-  -r will create a new playlist with <num> randomly selected tracks from the
-     database added.
+    -r will create a new playlist with <num> randomly selected tracks from the
+       database added.
 
-  -rt will play a random track from the current playlist.
+    -rt will play a random track from the current playlist.
 
 ### Favorites
 
   Favorites are handled in several ways. When the -f flag is used, pimpd will
   check for the genre tag of the song and, if existing, save it in the playlist
   directory with a year-month_genre-notation.
-  If there's no genre tag, the $fallback_playlist, specified in the
+
+  If there's no genre tag, the $fallback_playlist variable, specified in the
   configuration file, is used.
 
   pimpd will also keep a CSV-style database updated with more additional data on
@@ -136,7 +137,7 @@ regular functionality one would expect.
               --ssh-host      remote SSH server host
               --ssh-port      remote SSH server port
               --ssh-user      remote SSH server user
-    
+
       -h,     --help          show the help and exit
               --man           show the manpage and exit
 
