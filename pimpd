@@ -87,6 +87,7 @@ our(
   $opt_search_all_playlists,
 
   $opt_randomize,
+  $opt_random_track_in_playlist,
 
   @opt_add_playlist,
   $opt_playlist,
@@ -137,6 +138,7 @@ GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
   'randomize:i'        => \$opt_randomize,
+  'rt|random-track'    => \$opt_random_track_in_playlist,
   'cp|copy'            => \$opt_run_cp,
   'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
@@ -231,6 +233,7 @@ sub shell_msg_help {
         np        NIL  show the currently playing track
         cp        NIL  copy the currently playing track to specifed location
         cpl       s    copy the content of playlist s to specifed location
+        rt        NIL  play a random track from the playlist
         n         NIL  next track
         p         NIL  previous track
         s         NIL  shuffle the playlist
@@ -295,6 +298,7 @@ if($opt_monitor_d) {
   }
 }
 randomize($opt_randomize)                       if $opt_randomize;
+random_track_in_playlist()                      if $opt_random_track_in_playlist;
 add_playlist(0, @opt_add_playlist)              if @opt_add_playlist;
 add_current_album()                             if $opt_add_current_album;
 queue(@opt_queue)                               if @opt_queue;
@@ -424,6 +428,21 @@ sub randomize {
   $mpd->play;
 
   playlist("Added $count random songs:\n\n");
+}
+
+sub random_track_in_playlist {
+  if(playlist_is_empty()) {
+    print STDERR "Playlist is empty - nothing to play\n";
+    return 1;
+  }
+  my @items = $mpd->playlist->as_items;
+  if(!@items) {
+    print "uh, uh...\n";
+    return 1;
+  }
+  @items = shuffle(@items);
+  $mpd->play($items[0]->pos);
+  print current('show') . "\n";
 }
 
 sub playlist {
@@ -1298,6 +1317,7 @@ sub shell {
       randomize(@_);
     },
 
+
     'list'      => sub {
       if(playlist_is_empty()) {
         print STDERR "Playlist is empty\n";
@@ -1464,6 +1484,7 @@ sub shell {
       print "$status\n";
     },
 
+    'rt'        => sub { random_track_in_playlist(); },
     'aa'        => sub { add_current_album(); },
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
@@ -1795,6 +1816,7 @@ regular functionality one would expect.
   -i,     --info          print all information available
   -np,    --current       print now playing information on single line
   -r,     --random        randomize a new playlist with n tracks
+  -rt,    --random-track  play a random track from the playlist
   -cp,    --copy          copy the current track to specified location (C)
   -cpa,   --cp-album      copy the whole album the current track is featured on
                           to specified location
