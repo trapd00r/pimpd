@@ -1287,9 +1287,12 @@ sub shell {
 
   my $opts = {
     'rand'    => sub {
-      if(@_[0] !~ /^\d+$/) {
+      if(!defined($_[0])) {
+        $_[0] = 100;
+      }
+      elsif(defined($_[0]) and $_[0] !~ /^\d+$/) {
         print STDERR "@_[0] is not a valid integer\n";
-        @_[0] = 100;
+        $_[0] = 100;
       }
       print "Adding $c[15]@_\e[0m random tracks to the playlist...\n";
       randomize(@_);
