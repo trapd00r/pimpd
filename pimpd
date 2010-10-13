@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.6.9';
+our $VERSION  = '1.7.0';
 
 use strict;
 my $DEBUG = 0;
@@ -108,6 +108,8 @@ our(
 
   $opt_add_current_album,
 
+  $opt_clear_playlist,
+
   # So we could override configured settings on the commandline
   $opt_remote_host,
   $opt_remote_port,
@@ -136,7 +138,7 @@ else {
 GetOptions(
   'information'        => \$opt_information,
   'np'                 => \$opt_current,
-  'randomize:i'        => \$opt_randomize,
+  'r|randomize:i'      => \$opt_randomize,
   'rt|random-track'    => \$opt_random_track_in_playlist,
   'cp|copy'            => \$opt_run_cp,
   'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
@@ -173,7 +175,9 @@ GetOptions(
   'sar|search-artist=s'=> \$opt_search_artist,
   'set|search-title=s' => \$opt_search_title,
   'sap|favsearch=s'    => \$opt_search_all_playlists,
+
   'no-color|nocolor'   => \$opt_color,
+  'c|clear'            => \$opt_clear_playlist,
   'host:s'             => \$opt_remote_host,
   'port:s'             => \$opt_remote_port,
   'pass:s'             => \$opt_remote_pass,
@@ -420,7 +424,7 @@ sub randomize {
   my $count = shift // 100;
   my @songs = shuffle($mpd->collection->all_pathes);
 
-  $mpd->playlist->clear;
+  $mpd->playlist->clear if($opt_clear_playlist);
   $mpd->playlist->add(@songs[0 .. $count-1]);
   $mpd->random(1);
   $mpd->repeat(1);
@@ -525,7 +529,7 @@ sub add_playlist {
 
       print "Adding all playlists\n";
       my @all = $mpd->collection->all_playlists;
-      $mpd->playlist->clear if($clear_or_not > 0);
+      $mpd->playlist->clear if($opt_clear_playlist);
       for(@all) {
         $mpd->playlist->load($_);
       }
@@ -537,7 +541,7 @@ sub add_playlist {
 
     return 1 if(!@playlists);
 
-    $mpd->playlist->clear if($clear_or_not > 0);
+    $mpd->playlist->clear if($opt_clear_playlist);
 
     $mpd->playlist->load(@playlists);
     print "Adding ";
@@ -1115,7 +1119,6 @@ sub list_songs_on_album {
 }
 
 sub add_current_album {
-  my $clear_or_not = shift;
   my $album = $mpd->current->album;
 
   if(!defined($album) or $album eq '') {
@@ -1125,7 +1128,7 @@ sub add_current_album {
 
   my @tracks = $mpd->collection->songs_from_album($album);
 
-  $mpd->playlist->clear if($clear_or_not);
+  $mpd->playlist->clear if($opt_clear_playlist);
   for(@tracks) {
     printf("%s\n", $_->title);
     $mpd->playlist->add($_->file);
@@ -1864,6 +1867,8 @@ regular functionality one would expect.
   -sal,   --search-album  search the database for [<album>]
   -set,   --search-title  search the database for [<title>]
   -sap,   --favsearch     search the favlists for artist, album, title, file
+  -c,     --clear         clear the playlist before performing any action that
+                          generates a new playlist
   -no,    --no-color      turn colors off
           --mpd-kill      shut down the MPD server
           --host          remote MPD host
