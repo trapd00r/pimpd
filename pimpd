@@ -886,7 +886,7 @@ sub write_favlist {
     # 'Illegal seek'... why? It seems to work anyway, so dont die here, for now
     # Regular m3u
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
-      "echo $file >> $favlist_m3u"
+      "echo '$file' >> $favlist_m3u"
       );
     printf("$c[3]%s\e[0m\e[1m >> \e[0m %s\n", $file, "\e[1m$ssh_host\e[0m:$favlist_m3u");
 
