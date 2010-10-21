@@ -58,7 +58,7 @@ our(
 
   $history_playlist,
 
-  $opt_color,
+  $opt_no_color,
   @c,
 
   $daemon_cmd,
@@ -176,7 +176,7 @@ GetOptions(
   'set|search-title=s' => \$opt_search_title,
   'sap|favsearch=s'    => \$opt_search_all_playlists,
 
-  'no-color|nocolor'   => \$opt_color,
+  'no-color|nocolor'   => \$opt_no_color,
   'c|clear'            => \$opt_clear_playlist,
   'host:s'             => \$opt_remote_host,
   'port:s'             => \$opt_remote_port,
@@ -203,7 +203,7 @@ if($opt_remote_host) {
   );
 }
 
-@c = () if($opt_color); # No colors
+@c = () if($opt_no_color); # No colors
 
 cp() if($opt_run_cp);
 
@@ -343,10 +343,12 @@ sub information {
                  'artists'    =>  $mpd->stats->artists,
                  );
 
-  $current{'bitrate'} = ($current{'bitrate'} < 192)
-    ? ("$e;160m$current{'bitrate'}\e[0m")
-    : ("$e;70m$current{'bitrate'}\e[0m")
-    ;
+  if(not($opt_no_color)) { # Use colors
+    $current{'bitrate'} = ($current{'bitrate'} < 192)
+      ? ("$e;160m$current{'bitrate'}\e[0m")
+      : ("$e;70m$current{'bitrate'}\e[0m")
+      ;
+  }
 
   for(keys(%current)) {
     $current{$_} = "$e;240mNot Available$e;0m" if(!defined($current{$_}));
@@ -593,7 +595,7 @@ sub cp {
   chomp(my $file = $mpd->current->file);
 
   # escape evil chars the shell will munch
-  #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
   if(defined($remote_host)) {
     return scp($ssh_host, $ssh_port, "$basedir/$file", $dest)
@@ -888,7 +890,8 @@ sub write_favlist {
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
       "echo '$file' >> $favlist_m3u"
       );
-    printf("$c[3]%s\e[0m\e[1m >> \e[0m %s\n", $file, "\e[1m$ssh_host\e[0m:$favlist_m3u");
+    my ($basename) = $file =~ m;.+/(.+)$;;
+    printf("$c[3]%s\e[0m\e[1m >> \e[0m %s\n", $basename, "\e[1m$ssh_host\e[0m:$favlist_m3u");
 
     # Full DB
     my $full_str = sprintf("\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"",
@@ -1136,13 +1139,6 @@ sub add_current_album {
 
 }
 
-sub sec_and_min {
-  my $sec = shift;
-  my($s, $m) = localtime($sec);
-
-  return sprintf("$c[6]$c[15]%d\e[0m$c[6]m\e[0m$c[6]$c[15]% 2d\e[0m$c[6]s\e[0m",
-    $m, $s);
-}
 
 sub play_from_list {
   my $choice = $ARGV[0] // shift;
@@ -1263,42 +1259,27 @@ sub queue {
     return 1;
   }
   for(@to_play) {
-    if(invalid_pos($_)) {
+    if(invalid_pos($_ - 1)) {
       print STDERR "$c[5]$_\e[0m: invalid position\n";
       return 1;
     }
   }
 
+  $mpd->random(0);
+
   # The playlist numbering starts with 1
   # The internal numbering starts with 0
-  @to_play = map { $_--} @to_play;
 
-  my @track_in_list = $mpd->playlist->as_items;
-  my $argc = 0;
+  @to_play = map{ $_ = $_ - 1 } @to_play;
 
-  print ">> Starting queue...\n";
-  while(scalar(@to_play) > $argc) {
+  my $current_pos = $mpd->current->pos;
 
-    $mpd->play($to_play[$argc]);
-
-    my $time = $mpd->status->time->seconds_total;
-    $argc++;
-
-    my $next_in_list = $to_play[$argc];
-    print current() . "\n";
-
-    printf("$c[13]>>> %s - %s - %s \e[0m\n",
-      $track_in_list[$next_in_list]->artist,
-      $track_in_list[$next_in_list]->album,
-      $track_in_list[$next_in_list]->title,
-    ) if(scalar(@to_play) != $argc);
-
-    if(scalar(@to_play) == 1) {
-      return 0;
-    }
-    sleep($time);
+  # Make sure the tracks will be queued in the correct order
+  my $next_pos = $current_pos;
+  for(@to_play) {
+    $next_pos++;
+    $mpd->playlist->move($_, $next_pos);
   }
-  print ">> Queue finished.\n";
 }
 
 sub shell {
@@ -1312,13 +1293,13 @@ sub shell {
         $_[0] = 100;
       }
       elsif(defined($_[0]) and $_[0] !~ /^\d+$/) {
-        print STDERR "@_[0] is not a valid integer\n";
+        print STDERR "Need a valid integer\n";
         $_[0] = 100;
       }
       print "Adding $c[15]@_\e[0m random tracks to the playlist...\n";
+      #$opt_clear_playlist = 1;
       randomize(@_);
     },
-
 
     'list'      => sub {
       if(playlist_is_empty()) {
@@ -1619,11 +1600,6 @@ sub search_title  {
     scalar(@songs), $search);
 }
 
-sub pipe_add {
-  return if(!@_);
-  print "$_\n" for @_;
-  $mpd->playlist->add(@_);
-}
 
 sub current {
   if(playlist_is_empty()) {
@@ -1678,6 +1654,12 @@ sub current {
   return($current);
 }
 
+sub pipe_add {
+  return if(!@_);
+  print "$_\n" for @_;
+  $mpd->playlist->add(@_);
+}
+
 sub terminal_output {
   if(-t *STDOUT) {
     return 1;
@@ -1686,6 +1668,14 @@ sub terminal_output {
     @c = (); # make sure no escape sequences escape through
     return 0;
   }
+}
+
+sub sec_and_min {
+  my $sec = shift;
+  my($s, $m) = localtime($sec);
+
+  return sprintf("$c[6]$c[15]%d\e[0m$c[6]m\e[0m$c[6]$c[15]% 2d\e[0m$c[6]s\e[0m",
+    $m, $s);
 }
 
 sub playlist_is_empty {
