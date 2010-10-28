@@ -67,6 +67,10 @@ our(
 
   $dzen_cmd,
   $dzen_font,
+
+  $player,
+  @player_opts,
+  $player_stream,
 );
 
 file_exists();
@@ -114,13 +118,14 @@ our(
   $opt_mpd_host,
   $opt_mpd_port,
   $opt_mpd_pass,
+
 );
 
 my(undef, undef, undef, undef, $month, $year) = localtime(time);
 $month += 1;
 $year  += 1900;
 
-
+my $player_temp_log = '/tmp/pimpd_player.log';
 my $e = "\e[38;5";
 
 my $mpd;
@@ -184,6 +189,8 @@ GetOptions(
   'ssh_host:s'         => \$ssh_host,
   'ssh_port:s'         => \$ssh_port,
   'ssh_user:s'         => \$ssh_user,
+
+  'mplayer'            => sub { mplayer_connect(); },
 
   'kill'               => \&killkid,
   'mpd-kill'           => sub { $mpd->kill; },
@@ -525,6 +532,74 @@ sub search_all_playlists {
   return 0;
 }
 
+sub mplayer_connect {
+  my ($stream)  = shift;
+  my $terminate = shift;
+
+  exit 0 if($terminate);
+
+  my $fails = 0;
+
+  open(my $fh, '<', $player_temp_log);
+  while(<$fh>) {
+    if(/Exiting\.\.\. \(End of file\)/) {
+      $fails++;
+      sleep 1;
+      if($fails == 15) {
+        last;
+      }
+    }
+  }
+  if($fails == 15) {
+    close($fh);
+    unlink($player_temp_log);
+    #killkid();
+    exit 0;
+  }
+  else {
+    mplayer_daemonize($player_temp_log);
+    exec($player, @player_opts, $stream);
+  }
+  return 0;
+}
+
+sub mplayer_daemonize {
+  my $daemon_log = shift // '/dev/null';
+  use POSIX 'setsid';
+  my $PID = fork();
+  exit(0) if($PID); #parent
+  exit(1) if(!defined($PID)); # out of resources
+
+  setsid();
+  $PID = fork();
+  exit(1) if(!defined($PID));
+
+  if($PID) { # parent
+    open(my $fh, '>', "/tmp/pidfile-mplayer_parent") or die($!);
+    print $fh $$;
+    close($fh);
+
+    waitpid($PID, 0);
+    #unlink($pidfile); # remove the lock when child have died
+    #unlink('/tmp/mplayer_connect.log');
+
+    # Child have died/returned.
+    # This means that MPD is in a state where it's not sending any data
+    # We try to reconnect 15 times with 1s delay, and if the stream is still
+    # down, we exit. See mplayer_connect()
+    mplayer_connect($player_stream);
+    exit(0);
+  }
+  elsif($PID == 0) { # child
+    open(my $fh, '>', "$pidfile-mplayer") or die("pidfile $pidfile: $!");
+    print $fh $$;
+    close($fh);
+    open(STDOUT, '>>',  $daemon_log);
+    open(STDERR, '>', '/dev/null');
+    open(STDIN,  '<', '/dev/null');
+  }
+}
+
 sub add_playlist {
   my $clear_or_not = shift; # clear playlist?
   if(@_) {
@@ -536,6 +611,7 @@ sub add_playlist {
       for(@all) {
         $mpd->playlist->load($_);
       }
+      $mpd->play;
       return 0;
     }
 
@@ -1187,7 +1263,15 @@ sub daemonize {
 }
 
 sub killkid {
-  open(my $fh, '<', $pidfile) or print "pimpd is not running\n" and exit(1);
+  open(my $fh, '<', "/tmp/pidfile-mplayer_parent") or die($!);
+  my $parent = <$fh>;
+  print "killing mplayer-parent $parent\n"; # pimpd
+  kill(9, $parent);
+  close($fh);
+
+  #FIXME
+  open(my $fh, '<', "$pidfile-mplayer") or die($!);
+  #open(my $fh, '<', ) or print "pimpd is not running\n" and exit(1);
   my $target = <$fh>;
   close($fh);
 
@@ -1197,6 +1281,7 @@ sub killkid {
   else {
     print "Could not kill $target: $!";
   }
+  print "killing ", $target+1, " as well\n" if(kill(9, $target + 1));
   exit(0);
 }
 
@@ -1542,7 +1627,7 @@ sub search_playlist {
   }
 
   if(scalar(@found) < 1) {
-    print STDERR "No match on '$c[15]$search\e[0m' in the current playlist\n";
+    print STDERR "\e[0mNo match on '$c[15]$search\e[0m' in the current playlist\n";
     return 1;
   }
   #@found = map { $_ = $_ +1 } @found; # fulhack
