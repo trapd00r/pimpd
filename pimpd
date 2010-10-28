@@ -47,10 +47,10 @@ our(
 
   $portable,
 
-  $remote_host,
-  $remote_port,
-  $remote_user,
-  $remote_pass,
+  $mpd_host,
+  $mpd_port,
+  $mpd_user,
+  $mpd_pass,
 
   $ssh_host,
   $ssh_port,
@@ -111,9 +111,9 @@ our(
   $opt_clear_playlist,
 
   # So we could override configured settings on the commandline
-  $opt_remote_host,
-  $opt_remote_port,
-  $opt_remote_pass,
+  $opt_mpd_host,
+  $opt_mpd_port,
+  $opt_mpd_pass,
 );
 
 my(undef, undef, undef, undef, $month, $year) = localtime(time);
@@ -124,11 +124,11 @@ $year  += 1900;
 my $e = "\e[38;5";
 
 my $mpd;
-if(defined($remote_host)) {
+if(defined($mpd_host)) {
   $mpd = Audio::MPD->new(
-    host      => $remote_host,
-    port      => $remote_port,
-    pass      => $remote_pass,
+    host      => $mpd_host,
+    port      => $mpd_port,
+    pass      => $mpd_pass,
   );
 }
 else {
@@ -178,9 +178,9 @@ GetOptions(
 
   'no-color|nocolor'   => \$opt_no_color,
   'c|clear'            => \$opt_clear_playlist,
-  'host:s'             => \$opt_remote_host,
-  'port:s'             => \$opt_remote_port,
-  'pass:s'             => \$opt_remote_pass,
+  'host:s'             => \$opt_mpd_host,
+  'port:s'             => \$opt_mpd_port,
+  'pass:s'             => \$opt_mpd_pass,
   'ssh_host:s'         => \$ssh_host,
   'ssh_port:s'         => \$ssh_port,
   'ssh_user:s'         => \$ssh_user,
@@ -193,12 +193,12 @@ GetOptions(
 );
 
 # ... we need to recreate the MPD object
-if($opt_remote_host) {
-  $opt_remote_port = ($opt_remote_port) ? ($opt_remote_port) : ($remote_port);
-  $opt_remote_pass = ($opt_remote_pass) ? ($opt_remote_pass) : ($remote_pass);
+if($opt_mpd_host) {
+  $opt_mpd_port = ($opt_mpd_port) ? ($opt_mpd_port) : ($mpd_port);
+  $opt_mpd_pass = ($opt_mpd_pass) ? ($opt_mpd_pass) : ($mpd_pass);
   $mpd = Audio::MPD->new(
-    host  => $opt_remote_host,
-    port  => $opt_remote_port,
+    host  => $opt_mpd_host,
+    port  => $opt_mpd_port,
     pass  => 'void',
   );
 }
@@ -563,7 +563,7 @@ sub list_external {
     my $full_path = "$playlist_dir/$playlist\.m3u";
 
     my $fh = undef;
-    if(defined($remote_host)) {
+    if(defined($mpd_host)) {
       #$full_path =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
       open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|")
         or die("$ssh_host:$ssh_port: $!");
@@ -598,7 +598,7 @@ sub cp {
   # escape evil chars the shell will munch
   $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     return scp($ssh_host, $ssh_port, "$basedir/$file", $dest)
   }
 
@@ -683,7 +683,7 @@ sub cp_album {
     $albname, $dest);
 
 
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     my @files = grep{ /\.(?:mp3|ogg|flac|wav)$/ } `ssh -p $ssh_port $ssh_user\@$ssh_host 'find "$album"'`;
     for(@files) {
       chomp;
@@ -781,7 +781,7 @@ sub cp_list {
 
     my $fh = undef;
 
-    if(defined($remote_host)) {
+    if(defined($mpd_host)) {
       open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$full_path'\"|")
         or die("cp_list(): $ssh_host:$ssh_port: $!");
     }
@@ -799,7 +799,7 @@ sub cp_list {
   for my $file(keys(%playlist_map)) {
     my $full = "$basedir/$file";
 
-    if(defined($remote_host)) {
+    if(defined($mpd_host)) {
       $full =~ s/([ä;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
       scp($ssh_host, $ssh_port, "$full", $dest);
     }
@@ -820,7 +820,7 @@ sub cp_list {
 
 sub file_exists {
   my $rc = undef;
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
        'test', '-d', $ENV{XDG_DATA_HOME}
      );
@@ -885,7 +885,7 @@ sub write_favlist {
 
   my $fh = undef;
 
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     # 'Illegal seek'... why? It seems to work anyway, so dont die here, for now
     # Regular m3u
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
@@ -940,7 +940,7 @@ sub generate_fav_struct {
   my %fav_struct = ();
   my $fh = undef;
 
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$favlist_db_global'\"|")
       or die($!);
   }
@@ -1003,7 +1003,7 @@ sub favlist_stats {
 
   my $fh = undef;
 
-  if(defined($remote_host)) {
+  if(defined($mpd_host)) {
     open($fh, "ssh -p $ssh_port $ssh_user\@$ssh_host \"/bin/cat '$favlist_db_global'\"|")
       or die($!);
   }
