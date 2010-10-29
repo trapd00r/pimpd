@@ -63,7 +63,9 @@ our(
 
   $daemon_cmd,
 
-  $pidfile,
+  $pidfile_daemon,
+  $pidfile_pimpd,
+  $pidfile_player,
 
   $dzen_cmd,
   $dzen_font,
@@ -190,7 +192,8 @@ GetOptions(
   'ssh_port:s'         => \$ssh_port,
   'ssh_user:s'         => \$ssh_user,
 
-  'mplayer'            => sub { mplayer_connect(); },
+  'play'               => sub { play(); },
+  'stop'               => sub { stop(); },
 
   'kill'               => \&killkid,
   'mpd-kill'           => sub { $mpd->kill; },
@@ -226,6 +229,8 @@ sub shell_msg_help {
   printf("%s %s\n%s
     $APP $VERSION
     OPTIONS:
+        pplay          start playback
+        stop           stop playback
         rand      n    randomize a new playlist with n tracks
         play      n    play track n in playlist
         add       s    add playlist s
@@ -301,7 +306,7 @@ if($opt_monitor_d) {
   if(!defined($daemon_cmd)) {
     print STDERR "No daemon command specified in $config\n" and exit(1);
   }
-  if(-e $pidfile) {
+  if(-e $pidfile_daemon) {
     print STDERR "pimpd is already running\n" and exit(1);
   }
   else {
@@ -532,31 +537,89 @@ sub search_all_playlists {
   return 0;
 }
 
+sub daemonize {
+  my $daemon_log = shift // '/dev/null';
+  use POSIX 'setsid';
+  my $PID = fork();
+  exit(0) if($PID); #parent
+  exit(1) if(!defined($PID)); # out of resources
+
+  setsid();
+  $PID = fork();
+  exit(1) if(!defined($PID));
+
+  if($PID) { # parent
+    waitpid($PID, 0);
+    unlink($pidfile_daemon); # remove the lock when child have died
+    exit(0);
+  }
+  elsif($PID == 0) { # child
+    open(my $fh, '>', $pidfile_daemon) or die("Cant open $pidfile_daemon: $!");
+    print $fh $$;
+    close($fh);
+    open(STDOUT, '>', $daemon_log);
+    open(STDERR, '>', '/dev/null');
+    open(STDIN,  '<', '/dev/null');
+  }
+}
+
+sub killkid {
+  open(my $fh, '<', $pidfile_pimpd) or die($!);
+  my $pimpd_player = <$fh>;
+  close($fh);
+
+  if(kill(9, $pimpd_player)) {
+    unlink($player_temp_log);
+    printf("\e[1m%d\e[0m %s\n", $pimpd_player, 'terminated') if($DEBUG);
+  }
+
+  open(my $fh, '<', $pidfile_player) or die($!);
+  my $pimpd_target = <$fh>;
+  close($fh);
+
+  if(kill(9, $pimpd_target)) {
+    printf("\e[1m%d\e[0m %s\n", $pimpd_target, 'terminated') if($DEBUG);
+  }
+
+  if(kill(9, $pimpd_target+1)) {
+    printf("\e[1m%d\e[0m %s\n", $pimpd_target+1, 'terminated') if($DEBUG);
+  }
+  return 0;
+}
+
 sub mplayer_connect {
   my ($stream)  = shift;
 
   if(!defined($player)) {
-    print STDERR "No player configured\n";
-    exit(1);
+    #print STDERR "No player configured\n";
+    return 1;
   }
 
   my $fails = 0;
 
-  open(my $fh, '<', $player_temp_log);
-  while(<$fh>) {
-    if(/Exiting\.\.\. \(End of file\)/) {
-      $fails++;
-      select(undef, undef, undef, 0.50);
-      if($fails == 15) {
-        last;
+  # Not playing!
+  if(! -e $player_temp_log) {
+    mplayer_daemonize($player_temp_log);
+    exec($player, @player_opts, $stream);
+  }
+  else {
+    open(my $fh, '<', $player_temp_log);
+    while(<$fh>) {
+      if(/Exiting\.\.\. \(End of file\)/) {
+        $fails++;
+        # fulhack. Time::HiRes
+        select(undef, undef, undef, 0.50);
+        if($fails == 15) {
+          last;
+        }
       }
     }
+    close($fh);
   }
   if($fails == 15) {
-    close($fh);
     unlink($player_temp_log);
     #killkid();
-    exit 0;
+    return 0;
   }
   else {
     mplayer_daemonize($player_temp_log);
@@ -564,6 +627,7 @@ sub mplayer_connect {
   }
   return 0;
 }
+
 
 sub mplayer_daemonize {
   my $daemon_log = shift // '/dev/null';
@@ -577,13 +641,12 @@ sub mplayer_daemonize {
   exit(1) if(!defined($PID));
 
   if($PID) { # parent
-    open(my $fh, '>', "/tmp/pidfile-mplayer_parent") or die($!);
+    open(my $fh, '>', $pidfile_pimpd) or die($!);
     print $fh $$;
     close($fh);
 
     waitpid($PID, 0);
     #unlink($pidfile); # remove the lock when child have died
-    #unlink('/tmp/mplayer_connect.log');
 
     # Child have died/returned.
     # This means that MPD is in a state where it's not sending any data
@@ -593,13 +656,28 @@ sub mplayer_daemonize {
     exit(0);
   }
   elsif($PID == 0) { # child
-    open(my $fh, '>', "$pidfile-mplayer") or die("pidfile $pidfile: $!");
+    open(my $fh, '>', "$pidfile_player") or die("pidfile $pidfile_player: $!");
     print $fh $$;
     close($fh);
     open(STDOUT, '>>',  $daemon_log);
     open(STDERR, '>', '/dev/null');
     open(STDIN,  '<', '/dev/null');
   }
+  return 0;
+}
+
+sub play {
+  killkid(); # FIXME
+  #undef $player if($DEBUG);
+  if(mplayer_connect() == 1) {
+    $mpd->play;
+  }
+}
+
+sub stop {
+  $mpd->stop;
+  #unlink($player_temp_log);
+  killkid();
 }
 
 sub add_playlist {
@@ -831,7 +909,6 @@ sub is_existing_list {
         return(@choices); # return all matched lists
       }
 
-
       if($answer ~~ @valid_lists) {
         $list = $answer;
       }
@@ -840,7 +917,7 @@ sub is_existing_list {
         $list = $choices[$answer];
       }
       else {
-        print STDERR "$answer is not valid\n";
+        print STDERR "Playlist $answer is not valid\n";
         return 1;
       }
     }
@@ -1242,54 +1319,6 @@ sub play_from_list {
   print current(), "\n";
 }
 
-sub daemonize {
-  my $daemon_log = shift // '/dev/null';
-  use POSIX 'setsid';
-  my $PID = fork();
-  exit(0) if($PID); #parent
-  exit(1) if(!defined($PID)); # out of resources
-
-  setsid();
-  $PID = fork();
-  exit(1) if(!defined($PID));
-
-  if($PID) { # parent
-    waitpid($PID, 0);
-    unlink($pidfile); # remove the lock when child have died
-    exit(0);
-  }
-  elsif($PID == 0) { # child
-    open(my $fh, '>', $pidfile) or die("Cant open $pidfile: $!");
-    print $fh $$;
-    close($fh);
-    open(STDOUT, '>', $daemon_log);
-    open(STDERR, '>', '/dev/null');
-    open(STDIN,  '<', '/dev/null');
-  }
-}
-
-sub killkid {
-  open(my $fh, '<', "/tmp/pidfile-mplayer_parent") or die($!);
-  my $parent = <$fh>;
-  print "killing mplayer-parent $parent\n"; # pimpd
-  kill(9, $parent);
-  close($fh);
-
-  #FIXME
-  open(my $fh, '<', "$pidfile-mplayer") or die($!);
-  #open(my $fh, '<', ) or print "pimpd is not running\n" and exit(1);
-  my $target = <$fh>;
-  close($fh);
-
-  if(kill(9, $target)) {
-    print "pimpd with PID $target terminated\n";
-  }
-  else {
-    print "Could not kill $target: $!";
-  }
-  print "killing ", $target+1, " as well\n" if(kill(9, $target + 1));
-  exit(0);
-}
 
 sub monitor {
   my $np = "";
@@ -1569,6 +1598,9 @@ sub shell {
     'aa'        => sub { add_current_album(); },
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
+    'stop'      => sub { stop(); },
+    'play'      => sub { play(); },
+    'mplayer'   => sub { mplayer_connect(); },
     'h'         => sub { shell_msg_help(); },
     'exit'      => sub { exit(0); },
   };
@@ -1958,6 +1990,8 @@ regular functionality one would expect.
   -sap,   --favsearch     search the favlists for artist, album, title, file
   -c,     --clear         clear the playlist before performing any action that
                           generates a new playlist
+          --play          start remote/local playback
+          --stop          stop remote/local playback
   -no,    --no-color      turn colors off
           --mpd-kill      shut down the MPD server
           --host          remote MPD host
