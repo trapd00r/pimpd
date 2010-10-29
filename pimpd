@@ -534,9 +534,11 @@ sub search_all_playlists {
 
 sub mplayer_connect {
   my ($stream)  = shift;
-  my $terminate = shift;
 
-  exit 0 if($terminate);
+  if(!defined($player)) {
+    print STDERR "No player configured\n";
+    exit(1);
+  }
 
   my $fails = 0;
 
@@ -544,7 +546,7 @@ sub mplayer_connect {
   while(<$fh>) {
     if(/Exiting\.\.\. \(End of file\)/) {
       $fails++;
-      sleep 1;
+      select(undef, undef, undef, 0.50);
       if($fails == 15) {
         last;
       }
@@ -622,7 +624,7 @@ sub add_playlist {
 
     $mpd->playlist->clear if($opt_clear_playlist);
 
-    $mpd->playlist->load(@playlists);
+    $mpd->playlist->load($_) for @playlists;
     print "Adding ";
     print "$c[15]$_\e[0m " for @playlists;
     print "\n";
@@ -824,6 +826,10 @@ sub is_existing_list {
       }
       print "choice: ";
       chomp(my $answer = <STDIN>);
+
+      if($answer eq 'all') {
+        return(@choices); # return all matched lists
+      }
 
 
       if($answer ~~ @valid_lists) {
