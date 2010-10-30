@@ -1880,6 +1880,20 @@ pimpd is an MPD client written in Perl that aims to implement what the
 excellent mpc client is lacking (for good reasons), as well as all the
 regular functionality one would expect.
 
+=head3 Local playback
+
+  If defined in the configuration file, an external player can be used for
+  playback of music running on another box (the MPD server). This is fully
+  transparent; when MPD is stopped, so is the external player.
+
+  When the --play flag is given, pimpd will connect to MPD and start playback
+  if neccessary, and at the same time connect to the stream with the specified
+  external player.
+
+  Issues with unreliable network connections/slow disks causing the external
+  player to exit is eliminated, as well as scenarios where the MPD playlist
+  might be temporary empty (no playback - external player exits).
+
 =head3 Regular expression based queries
 
   You can search the database and playlist using regular expressions. There are
