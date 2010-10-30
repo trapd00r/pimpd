@@ -247,7 +247,7 @@ sub shell_msg_help {
         i         NIL  show now playing information
         np        NIL  show the currently playing track
         cp        NIL  copy the currently playing track to specifed location
-        cpl       s    copy the content of playlist s to specifed location
+        cpl       (s)  copy the content of playlist s to specifed location
         rt        NIL  play a random track from the playlist
         n         NIL  next track
         p         NIL  previous track
@@ -960,10 +960,10 @@ sub cp_list {
         }
         else {
           print STDERR "cp_list(): $!\n";
-          return 1;
         }
       }
     }
+    return 0;
   }
 
   my %playlist_map;
