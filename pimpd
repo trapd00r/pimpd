@@ -940,6 +940,32 @@ sub cp_list {
   is_existing_dir($dest);
   @lists = is_existing_list(@lists);
 
+  # No list specified, use the current playlist
+  if(!@lists) {
+    my @files = map { $_ = "$basedir/" . $_->file; } $mpd->playlist->as_items;
+    if(defined($mpd_host)) {
+      for my $file(@files) {
+        #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+        $file =~ s/(\s+)/\\$1/g;
+        scp($ssh_host, $ssh_port, $file, $dest);
+      }
+    }
+    else {
+      for my $file(@files) {
+        #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+        $file =~ s/(\s+)/\\$1/g;
+        if(copy($file, $dest)) {
+          printf("[$c[6]%5.11s\e[0m] %50.50s $c[15] => \e[0m %s\n",
+            'current', $file, $dest);
+        }
+        else {
+          print STDERR "cp_list(): $!\n";
+          return 1;
+        }
+      }
+    }
+  }
+
   my %playlist_map;
 
   for my $playlist(@lists) {
