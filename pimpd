@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.7.1';
+our $VERSION  = '1.8.0';
 
 use strict;
 my $DEBUG = 0;
@@ -143,7 +143,7 @@ else {
 }
 
 GetOptions(
-  'information'        => \$opt_information,
+  'i|information'      => \$opt_information,
   'np'                 => \$opt_current,
   'r|randomize:i'      => \$opt_randomize,
   'rt|random-track'    => \$opt_random_track_in_playlist,
@@ -163,7 +163,7 @@ GetOptions(
     }
   },
   'aa|add-album'       => \$opt_add_current_album,
-  'p|playlist'         => \$opt_playlist,
+  'pls|list|playlist'  => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
   'lp|lsp|list-pl'     => sub
@@ -495,7 +495,7 @@ sub playlist {
         $i, $artist, $title);
     }
     else {
-      printf("$w%4d\e[0m $w$c[13]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[11]%-47.47s\e[0m\n",
+      printf("$w%4d\e[0m $w$c[6]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[12]%-47.47s\e[0m\n",
         $i, $artist, $title);
     }
     $i++;
@@ -564,7 +564,7 @@ sub daemonize {
 }
 
 sub killkid {
-  open(my $fh, '<', $pidfile_pimpd) or die($!);
+  open(my $fh, '<', $pidfile_pimpd) or return 1; # for now
   my $pimpd_player = <$fh>;
   close($fh);
 
@@ -588,10 +588,13 @@ sub killkid {
 }
 
 sub mplayer_connect {
-  my ($stream)  = shift;
 
   if(!defined($player)) {
     #print STDERR "No player configured\n";
+    return 1;
+  }
+  if(!defined($player_stream)) {
+    #print STDERR "No stream configured\n";
     return 1;
   }
 
@@ -600,7 +603,7 @@ sub mplayer_connect {
   # Not playing!
   if(! -e $player_temp_log) {
     mplayer_daemonize($player_temp_log);
-    exec($player, @player_opts, $stream);
+    exec($player, @player_opts, $player_stream);
   }
   else {
     open(my $fh, '<', $player_temp_log);
@@ -623,7 +626,7 @@ sub mplayer_connect {
   }
   else {
     mplayer_daemonize($player_temp_log);
-    exec($player, @player_opts, $stream);
+    exec($player, @player_opts, $player_stream);
   }
   return 0;
 }
@@ -667,11 +670,14 @@ sub mplayer_daemonize {
 }
 
 sub play {
-  killkid(); # FIXME
   #undef $player if($DEBUG);
-  if(mplayer_connect() == 1) {
-    $mpd->play;
-  }
+  killkid(); # FIXME
+  $mpd->play;
+  mplayer_connect();
+
+  #if(mplayer_connect() == 1) {
+  #  $mpd->play;
+  #}
 }
 
 sub stop {
@@ -738,8 +744,9 @@ sub list_external {
 sub scp {
   my($host, $port, $src, $dest) = @_;
 
-  $src  =~ s/([ '"&;|])/\\$1/g;
-  $dest =~ s/([ '"&;|])/\\$1/g;
+  $src  =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  $dest =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+
   system('scp', '-r',  "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
   return 0;
 }
@@ -936,6 +943,7 @@ sub cp_list {
   my %playlist_map;
 
   for my $playlist(@lists) {
+    print "$playlist\n";
     my $full_path = "$playlist_dir/$playlist\.m3u";
 
     my $fh = undef;
@@ -959,8 +967,8 @@ sub cp_list {
     my $full = "$basedir/$file";
 
     if(defined($mpd_host)) {
-      $full =~ s/([ä;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-      scp($ssh_host, $ssh_port, "$full", $dest);
+      #$full =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+      scp($ssh_host, $ssh_port, $full, $dest);
     }
     else {
       my($basename) = $file =~ m;.+/(.+)$;;
@@ -1404,7 +1412,7 @@ sub queue {
   for(@to_play) {
     printf("$c[8]%-30.30s\e[0m\n", $list{$_});
     print "$_ => \e[1m$next_pos\e[0m\n";
-    $mpd->playlist->move($_, 1);
+    $mpd->playlist->move($_, $next_pos++); #FIXME
     $next_pos++;
   }
 }
@@ -1633,11 +1641,8 @@ sub search_playlist {
   my %playlist = undef;
 
   for($mpd->playlist->as_items) {
-    # http://sv.wikipedia.org/wiki/Fulhack
-    $playlist{pos}->{$_->pos} = $_->artist . ' ' . $_->album . ' ' . $_->title;
+    $playlist{pos}->{$_->pos} = join(' - ', $_->artist, $_->album, $_->title);
   }
-
-  my @found;
 
   if(invalid_re($search)) {
     print STDERR "'$search' is not valid regex. See 'perldoc perlretut'\n";
@@ -1650,6 +1655,7 @@ sub search_playlist {
   # even though the title doesnt say so.
   # Or maybe we should just let the user craft their regex good enough :)
 
+  my @found = ();
   # 'pos'
   for my $pos(keys(%playlist)) {
     # 42
@@ -1696,7 +1702,7 @@ sub search_album {
     print ">> $c[2]$search$c[9]: no tracks found\n";
     return 1;
   }
-  @tracks = map { $_ = $_->file } @tracks;
+  map { $_ = $_->file } @tracks;
   pipe_add(@tracks);
 
   printf(">> $c[6]$c[15]%d\e[0m $c[15]album\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
@@ -1710,7 +1716,7 @@ sub search_artist {
     print ">> $c[2]$search$c[9]: nothing found\n";
     return 1;
   }
-  @artists = map { $_ = $_->file } @artists;
+   map { $_ = $_->file } @artists;
   pipe_add(@artists);
 
   printf(">> $c[6]$c[15]%d\e[0m $c[15]artist\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
@@ -1724,7 +1730,7 @@ sub search_title  {
     print ">> $c[2]$search$c[9]: nothing found\n";
     return 1;
   }
-  @songs = map { $_ = $_->file } @songs;
+   map { $_ = $_->file } @songs;
   pipe_add(@songs);
 
   printf(">> $c[6]$c[15]%d\e[0m $c[15]song\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
@@ -1972,7 +1978,7 @@ regular functionality one would expect.
   -l,     --listalbums    list all albums featuring artist
   -lsa,   --listsongs     list all songs on the current album
   -lsp,   --list-pl       list all available playlists
-  -p,     --playlist      show the current playlist
+  -pls    --playlist      show the current playlist
   -t,     --track         play track <num> from playlist
   -a,     --add           add playlist <str>. If <str> eq "all", add all
   -aa,    --add-album     add the current album to the playlist
