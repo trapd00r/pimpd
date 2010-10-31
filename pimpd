@@ -107,6 +107,7 @@ our(
   $opt_list_songs_on_album,
 
   $opt_current,
+  $opt_np_rt,
 
   $opt_run_cp,
   $opt_cp_list,
@@ -145,6 +146,7 @@ else {
 GetOptions(
   'i|information'      => \$opt_information,
   'np'                 => \$opt_current,
+  'nprt'               => \$opt_np_rt,
   'r|randomize:i'      => \$opt_randomize,
   'rt|random-track'    => \$opt_random_track_in_playlist,
   'cp|copy'            => \$opt_run_cp,
@@ -246,6 +248,7 @@ sub shell_msg_help {
         lsa       (n)  list all songs on the current album
         i         NIL  show now playing information
         np        NIL  show the currently playing track
+        nprt      NIL  show the currently playing track and progress in realtime
         cp        NIL  copy the currently playing track to specifed location
         cpl       (s)  copy the content of playlist s to specifed location
         rt        NIL  play a random track from the playlist
@@ -293,6 +296,7 @@ if($mpd->status->state eq 'stop') {
 }
 
 print current(), "\n"                         if $opt_current;
+np_realtime(),                                if $opt_np_rt;
 information()                                 if $opt_information;
 playlist()                                    if $opt_playlist;
 write_favlist(shift)                          if $opt_write_favlist;
@@ -588,7 +592,6 @@ sub killkid {
 }
 
 sub mplayer_connect {
-
   if(!defined($player)) {
     #print STDERR "No player configured\n";
     return 1;
@@ -653,7 +656,7 @@ sub mplayer_daemonize {
 
     # Child have died/returned.
     # This means that MPD is in a state where it's not sending any data
-    # We try to reconnect 15 times with 1s delay, and if the stream is still
+    # We try to reconnect 15 times with a delay, and if the stream is still
     # down, we exit. See mplayer_connect()
     mplayer_connect($player_stream);
     exit(0);
@@ -824,7 +827,7 @@ sub cp_album {
     }
   }
 
-  my $file  = $mpd->current->file;
+  my $file = $mpd->current->file;
   return 1 if(!$file);
 
   my $path  = "$basedir/$file";
@@ -1443,6 +1446,39 @@ sub queue {
   }
 }
 
+sub np_realtime {
+  my $np = "";
+
+  # Make the cursor visible before exiting
+  # Yes, this only works in xterms and rxvt's.
+  # It shoulnd't do anything at all for people using other VTs
+  $SIG{INT} = sub { printf("\e[?25h"); exit(0); };
+
+  while(1) {
+    my $current = $mpd->current;
+    my $output  = undef;
+    if(!$current) {
+      ($output, $current) = 'undef' x 2;
+    }
+    else {
+      $output = sprintf("$c[15]$c[6]%s\e[0m - %s - $c[10]%s\e[0m",
+        $mpd->current->artist,  $mpd->current->album, $mpd->current->title);
+    }
+    my $played_time = $mpd->status->time->sofar;
+    my $total_time  = $mpd->status->time->total;
+
+    $|++;
+    # Hide the cursor
+    printf("\e[?25l");
+    printf("[%s/$c[6]%s\e[0m]\r", $played_time, $total_time);
+    if("$np" ne "$current") {
+      $np = $current;
+      printf("\t\t%s\r", $output);
+    }
+    sleep 1;
+  }
+}
+
 sub shell {
   my $option = shift;
   my($cmd, $arg, @cmd_args); # for later use
@@ -1602,6 +1638,14 @@ sub shell {
         return 1;
       }
       print current() . "\n";
+    },
+
+    'nprt'      => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return 1;
+      }
+      np_realtime();
     },
 
     'q'         => sub {
@@ -1991,11 +2035,13 @@ regular functionality one would expect.
 
 =head3 Now playing
 
-  There are two options that will yeild some info on the current track:
+  There are three options that will yeild some info on the current track:
 
-  -i   print all information available.
+  -i     print all information available.
 
-  -np  print information on the currently playing track only, on a single line.
+  -np    print information on the currently playing track only, on a single line.
+
+  -nprt  print information on the currently playing track in realtime mode.
 
 =head3 Colors
 
@@ -2008,6 +2054,7 @@ regular functionality one would expect.
 
   -i,     --info          show all info for the currently playing song
   -np,    --current       print basic song info on a single line
+          --np-rt         print updating song info on a single line
   -r,     --random        randomize a new playlist with <num> tracks
   -rt,    --random-track  play a random track from the playlist
   -cp,    --copy          copy the current track to specified location
