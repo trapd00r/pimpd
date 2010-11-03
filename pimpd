@@ -92,6 +92,7 @@ our(
   $opt_search_all_playlists,
 
   $opt_randomize,
+  $opt_randomize_albums,
   $opt_random_track_in_playlist,
 
   @opt_add_playlist,
@@ -148,9 +149,10 @@ GetOptions(
   'np'                 => \$opt_current,
   'nprt'               => \$opt_np_rt,
   'r|randomize:i'      => \$opt_randomize,
+  'ra|random-album:i'  => \$opt_randomize_albums,
   'rt|random-track'    => \$opt_random_track_in_playlist,
   'cp|copy'            => \$opt_run_cp,
-  'cpl|cp-list:s{1,}'  => sub { shift; cp_list(shift); },
+  'cpl|cp-list:s{,}'   => sub { shift; cp_list(shift); },
   'cpa|cp-album'       => \$opt_cp_album,
   'f|favorite'         => \$opt_write_favlist,
   'fs|favstats:s'      => sub { shift; favlist_stats(shift); },
@@ -231,10 +233,11 @@ sub shell_msg_help {
   printf("%s %s\n%s
     $APP $VERSION
     OPTIONS:
-        pplay          start playback
+        play           start playback
         stop           stop playback
         rand      n    randomize a new playlist with n tracks
-        play      n    play track n in playlist
+        randa     n    add n random albums to a new playlist
+        track     n    play track n in playlist
         add       s    add playlist s
         aa        NIL  add the full album of the currently playing song
         sdb       p    search the database for pattern
@@ -278,6 +281,7 @@ if($mpd->status->playlistlength < 1) {
     shell();
   }
     unless($opt_randomize
+      or $opt_randomize_albums
       or $opt_search_db
       or $opt_search_album
       or $opt_search_artist
@@ -318,6 +322,7 @@ if($opt_monitor_d) {
   }
 }
 randomize($opt_randomize)                       if $opt_randomize;
+randomize_albums($opt_randomize_albums)         if $opt_randomize_albums;
 random_track_in_playlist()                      if $opt_random_track_in_playlist;
 add_playlist(0, @opt_add_playlist)              if @opt_add_playlist;
 add_current_album()                             if $opt_add_current_album;
@@ -450,6 +455,23 @@ sub randomize {
   $mpd->play;
 
   playlist("Added $count random songs:\n\n");
+}
+
+sub randomize_albums {
+  my $count  = shift // 10;
+  my @albums = shuffle($mpd->collection->all_albums);
+
+  $mpd->playlist->clear;
+  my @songs = ();
+  for(@albums[1 .. $count]) {
+    print "$_\n";# if($DEBUG);
+    push(@songs, map { $_->file } $mpd->collection->songs_from_album($_));
+  }
+  $mpd->playlist->add(@songs);
+  $mpd->random(0);
+  $mpd->play(0);
+  play();
+  return 0;
 }
 
 sub random_track_in_playlist {
@@ -591,7 +613,7 @@ sub killkid {
   return 0;
 }
 
-sub mplayer_connect {
+sub player_connect {
   if(!defined($player)) {
     #print STDERR "No player configured\n";
     return 1;
@@ -605,7 +627,7 @@ sub mplayer_connect {
 
   # Not playing!
   if(! -e $player_temp_log) {
-    mplayer_daemonize($player_temp_log);
+    player_daemonize($player_temp_log);
     exec($player, @player_opts, $player_stream);
   }
   else {
@@ -628,14 +650,14 @@ sub mplayer_connect {
     return 0;
   }
   else {
-    mplayer_daemonize($player_temp_log);
+    player_daemonize($player_temp_log);
     exec($player, @player_opts, $player_stream);
   }
   return 0;
 }
 
 
-sub mplayer_daemonize {
+sub player_daemonize {
   my $daemon_log = shift // '/dev/null';
   use POSIX 'setsid';
   my $PID = fork();
@@ -657,8 +679,8 @@ sub mplayer_daemonize {
     # Child have died/returned.
     # This means that MPD is in a state where it's not sending any data
     # We try to reconnect 15 times with a delay, and if the stream is still
-    # down, we exit. See mplayer_connect()
-    mplayer_connect($player_stream);
+    # down, we exit. See player_connect()
+    player_connect($player_stream);
     exit(0);
   }
   elsif($PID == 0) { # child
@@ -676,9 +698,9 @@ sub play {
   #undef $player if($DEBUG);
   killkid(); # FIXME
   $mpd->play;
-  mplayer_connect();
+  player_connect();
 
-  #if(mplayer_connect() == 1) {
+  #if(player_connect() == 1) {
   #  $mpd->play;
   #}
 }
@@ -918,7 +940,9 @@ sub is_existing_list {
       if($answer eq 'all') {
         return(@choices); # return all matched lists
       }
-
+      elsif($answer eq 'current') {
+        return(undef);
+      }
       if($answer ~~ @valid_lists) {
         $list = $answer;
       }
@@ -1094,6 +1118,7 @@ sub write_favlist {
     my $full_str = sprintf("\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"",
       $artist, $album, $title, $genre, $file
     );
+    # TODO Shouldnt these be local?
     system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
       "echo '$full_str' >> $favlist_db_global"
     );
@@ -1497,6 +1522,9 @@ sub shell {
       #$opt_clear_playlist = 1;
       randomize(@_);
     },
+    'randa'   => sub {
+      randomize_albums($_[0]);
+    },
 
     'list'      => sub {
       if(playlist_is_empty()) {
@@ -1522,7 +1550,7 @@ sub shell {
       }
     },
 
-    'play'      => sub {
+    'track'      => sub {
       @_[0] = 1 if @_[0] !~ /^\d+$/;
       play_from_list(@_);
     },
@@ -1602,6 +1630,7 @@ sub shell {
     'e'         => sub { list_external(@_); },
 
     # The 0 argument makes sure we're not clearing the playlist
+    # NOTE: Not really neccessary anymore
     'add'       => sub { add_playlist(0, @_); },
 
     'n'         => sub {
@@ -1677,8 +1706,13 @@ sub shell {
     'cl'        => sub { $mpd->playlist->clear; },
     'cr'        => sub { $mpd->playlist->crop; },
     'stop'      => sub { stop(); },
-    'play'      => sub { play(); },
-    'mplayer'   => sub { mplayer_connect(); },
+    'play'      => sub {
+      if(playlist_is_empty()) {
+        print STDERR "Nothing is playing - playlist is empty\n";
+        return 1;
+      }
+      play();
+    },
     'h'         => sub { shell_msg_help(); },
     'exit'      => sub { exit(0); },
   };
@@ -1946,9 +1980,9 @@ sub help {
 
 =head1 DESCRIPTION
 
-pimpd is an MPD client written in Perl that aims to implement what the
-excellent mpc client is lacking (for good reasons), as well as all the
-regular functionality one would expect.
+  pimpd is an MPD client written in Perl that aims to implement what the
+  excellent mpc client is lacking (for good reasons), as well as all the
+  regular functionality one would expect.
 
 =head3 Local playback
 
@@ -1978,6 +2012,9 @@ regular functionality one would expect.
 
   -r will create a new playlist with <num> randomly selected tracks from the
      database added.
+
+  -ra will create a new playlist with <num> randomly selected albums from the
+      database added.
 
   -rt will play a random track from the current playlist.
 
@@ -2053,9 +2090,10 @@ regular functionality one would expect.
 =head1 OPTIONS
 
   -i,     --info          show all info for the currently playing song
-  -np,    --current       print basic song info on a single line
+  -np,    --current       print basic song info on a single lin
           --np-rt         print updating song info on a single line
   -r,     --random        randomize a new playlist with <num> tracks
+  -ra,    --random-album  randomize a new playlist with <num> albums
   -rt,    --random-track  play a random track from the playlist
   -cp,    --copy          copy the current track to specified location
   -cpa,   --cp-album      copy the current album to specified location
