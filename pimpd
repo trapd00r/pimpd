@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.8.2';
+our $VERSION  = '1.8.3';
 
 use strict;
 my $DEBUG = 0;
@@ -12,7 +12,7 @@ use Getopt::Long;
 use File::Copy;
 use Carp;
 use Pod::Usage;
-use File::Path 'make_path';
+use File::Path qw(make_path remove_tree);
 
 if($DEBUG) {
   use Data::Dumper;
@@ -170,6 +170,7 @@ GetOptions(
   'pls|list|playlist'  => \$opt_playlist,
   'track|play'         => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
+  'delete'             => sub { delete_current_album(); },
   'lp|lsp|list-pl'     => sub
   {
     print "$_\n" for sort($mpd->collection->all_playlists);
@@ -461,12 +462,16 @@ sub randomize_albums {
   my $count  = shift // 10;
   my @albums = shuffle($mpd->collection->all_albums);
 
-  $mpd->playlist->clear;
   my @songs = ();
   for(@albums[1 .. $count]) {
-    print "$_\n";# if($DEBUG);
-    push(@songs, map { $_->file } $mpd->collection->songs_from_album($_));
+    print "$_\n"; # if($DEBUG);
+    #if($mpd->collection->songs_from_album($_) < 2) {
+    #  $count++;
+    #  next;
+    #}
+    push(@songs, map { $_->file } $mpd->collection->songs_from_album($_))
   }
+  $mpd->playlist->clear;
   $mpd->playlist->add(@songs);
   $mpd->random(0);
   $mpd->play(0);
@@ -487,6 +492,42 @@ sub random_track_in_playlist {
   @items = shuffle(@items);
   $mpd->play($items[0]->pos);
   print current('show') . "\n";
+}
+
+sub delete_current_album {
+  my $file = $mpd->current->file;
+  my($album) = $file =~ m;(.+)/.+$;;
+  $album = "$basedir/$album";
+  $album =~  s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+
+  if(defined($mpd_host)) {
+    printf("Remove \e[1m%s\e[0m ? [y/N] ", $album);
+    chomp(my $answer = <STDIN>);
+    if(lc($answer) ne 'y') {
+      return 1;
+    }
+    else {
+      system("ssh", "-p $ssh_port", "$ssh_user\@$ssh_host",
+        "rm -rv $album");
+    }
+  }
+  else {
+    printf("Remove \e[1m%s\e[0m ? [y/N] ", $album);
+    chomp(my $answer = <STDIN>);
+    if(lc($answer) ne 'y') {
+      return 1;
+    }
+    else {
+      if(remove_path($album)) {
+        printf("%s deleted\n", $album);
+        return 0;
+      }
+      else {
+       print "$!\n";
+      }
+    }
+  }
+  return 0;
 }
 
 sub playlist {
