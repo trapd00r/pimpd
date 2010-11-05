@@ -462,18 +462,24 @@ sub randomize_albums {
   my $count  = shift // 10;
   my @albums = shuffle($mpd->collection->all_albums);
 
-  my @songs = ();
-  for(@albums[1 .. $count]) {
-    print "$_\n"; # if($DEBUG);
-    #if($mpd->collection->songs_from_album($_) < 2) {
-    #  $count++;
-    #  next;
-    #}
-    push(@songs, map { $_->file } $mpd->collection->songs_from_album($_))
+  my @songs;
+  for(@albums) {
+    if($count == 0) {
+      last;
+    }
+    my @songs_on_album = $mpd->collection->songs_from_album($_);
+    if(scalar(@songs_on_album) <= 2) {
+      next;
+    }
+    else {
+      push(@songs, map { $_->file } @songs_on_album);
+      print "$_\n"; # if($DEBUG);
+      $count--;
+    }
   }
-  $mpd->playlist->clear;
+  $mpd->playlist->clear if($opt_clear_playlist);
   $mpd->playlist->add(@songs);
-  $mpd->random(0);
+  #$mpd->random(0);
   $mpd->play(0);
   play();
   return 0;
