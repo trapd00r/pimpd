@@ -168,7 +168,7 @@ GetOptions(
   },
   'aa|add-album'       => \$opt_add_current_album,
   'pls|list|playlist'  => \$opt_playlist,
-  'track|play'         => \$opt_play_from_list,
+  'track'              => \$opt_play_from_list,
   'add=s{1,}'          => \@opt_add_playlist,
   'delete'             => sub { delete_current_album(); },
   'lp|lsp|list-pl'     => sub
@@ -1424,7 +1424,7 @@ sub play_from_list {
       . "\e[0m songs in the playlist. Pick one of them!\n";
       return 1;
   }
-  $mpd->play($choice);
+  $mpd->play($choice -1);
   print current(), "\n";
 }
 
