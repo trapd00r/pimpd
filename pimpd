@@ -831,7 +831,7 @@ sub cp {
   chomp(my $file = $mpd->current->file);
 
   # escape evil chars the shell will munch
-  $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g unless(defined($mpd_host));
 
   if(defined($mpd_host)) {
     return scp($ssh_host, $ssh_port, "$basedir/$file", $dest)
