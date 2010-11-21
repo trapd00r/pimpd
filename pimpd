@@ -816,8 +816,11 @@ sub list_external {
 sub scp {
   my($host, $port, $src, $dest) = @_;
 
-  $src  =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-  $dest =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  # ~  - if a filename contains this, fun stuff could happen
+  # =  - one could set env vars if not escaping this
+  $src  =~ s/([;\\<\n\=\~>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  $dest =~ s/([;\\<\n\=\~>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  #$dest =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
   system('scp', '-r',  "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
   return 0;
