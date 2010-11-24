@@ -13,6 +13,7 @@ use File::Copy;
 use Carp;
 use Pod::Usage;
 use File::Path qw(make_path remove_tree);
+use Term::ExtendedColor;
 
 if($DEBUG) {
   use Data::Dumper;
@@ -225,7 +226,7 @@ cp() if($opt_run_cp);
 do {
   my $i = 0;
   for(@c) {
-    printf("$c[$i]\$c[$i]\e[0m\n");
+    printf("%02d  %s\n", $i, fg($_, $_));
     $i++;
   }
 } if($DEBUG);
@@ -366,11 +367,16 @@ sub information {
                  'artists'    =>  $mpd->stats->artists,
                  );
 
+  (undef,undef,undef,undef,undef, my $crnt_year) = localtime(time);
+  $crnt_year += 1900;
+
   if(not($opt_no_color)) { # Use colors
     $current{'bitrate'} = ($current{'bitrate'} < 192)
       ? ("$e;160m$current{'bitrate'}\e[0m")
       : ("$e;70m$current{'bitrate'}\e[0m")
       ;
+
+    $current{date} = fg('bold', $current{date});
   }
 
   for(keys(%current)) {
@@ -381,11 +387,6 @@ sub information {
   $status{state} = 'Paused'  if($status{state} eq 'pause');
   $status{state} = 'Stopped' if($status{state} eq 'stop');
 
-  (undef,undef,undef,undef,undef, my $crnt_year) = localtime(time);
-  $crnt_year += 1900;
-
-  $current{date} = "$e;38m$c[15]$current{date}\e[0m" if($current{date} eq $crnt_year);
-
   $status{repeat}  = onoff($status{repeat});
   $status{shuffle} = onoff($status{repeat});
 
@@ -393,55 +394,76 @@ sub information {
     $status{volume} = 'N/A (Software Mixer)';
   }
 
-  printf("$e;251m$c[15]S\e[0m%10s$c[6]$c[15] %.66s\e[0m \n",
-    'Artist:', $current{artist});
+  printf("%s %8s: %.66s\n", fg('bold', fg('251', 'S')),
+    'Artist', fg($c[3], fg('bold', $current{artist}))
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('250', 'O')),
+    'Album', fg($c[0], $current{album})
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('249', 'N')),
+    'Song', fg($c[11], fg('bold', $current{title}))
+  );
 
-  printf("$e;250mO\e[0m%10s$c[8] %.66s\e[0m \n",
-    'Album:' , $current{album});
+  printf("%s %8s: %.66s\n", fg('bold', fg(248, 'G')),
+    'Genre', fg($c[13], $current{genre})
+  );
+  printf("%s %9s: %s\n", fg('bold', undef),
+    'File', fg($c[7], $current{file})
+  );
 
-  printf("$e;249mN\e[0m%10s$c[7]$c[15] %.66s \n",
-    'Song:'  , $current{title});
+  printf("%s %8s: %.66s\n", fg('bold', fg('247', 'I')),
+    'Date', $current{date}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('246', 'N')),
+    'Time', $current{time}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('245', 'F')),
+    'Bitrate', $current{bitrate}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('244', 'O')),
+    'Audio', $current{audio}
+  );
 
-  printf("$e;248mG\e[0m%10s %.66s \n",
-    'Genre:' , $current{genre});
+  print fg($c[15]);
+  print '-' x 25, clear(), "\n";
 
-  printf(" %10s$c[9] $c[15]%.66s\e[0m \n",
-    'File:'  , $current{file});
+  printf("%s %8s: %.66s\n", fg('bold', fg('243', 'S')),
+    'Repeat', $status{repeat}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('242', 'T')),
+    'Shuffle', $status{shuffle}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('242', 'A')),
+    'Xfade', $status{xfade}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('241', 'T')),
+    'Volume', $status{volume}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('240', 'U')),
+   'State', $status{state}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('239', 'S')),
+   'List V', $status{list}
+  );
 
-  printf("$e;247m$c[15]I\e[0m%10s %.66s \n",
-    'Year:'  , $current{date});
+  print fg($c[15]);
+  print '-' x 25, clear(), "\n";
 
-  printf("$e;246mN\e[0m%10s %.66s \n",
-    'Time:'  , $current{time});
-
-  printf("$e;245mF\e[0m%10s %.66s \n",
-    'Bitrate:'  , $current{bitrate});
-
-  printf("$e;244mO\e[0m%10s %.66s \n",
-    'Audio:' , $current{audio});
-
-  print "$c[13]$c[15]";
-  print '-' x 25, "\e[0m\n";
-
-  printf("$e;243m$c[15]S\e[0m%10s %.66s \n",
-    'Repeat:', $status{repeat});
-
-  printf("$e;242mT\e[0m%10s %.66s \n",
-    'Shuffle:',$status{shuffle});
-
-  printf("$e;241mA\e[0m%10s %.66s \n", 'Xfade:', $status{xfade});
-  printf("$e;240mT\e[0m%10s %.66s \n", 'Volume:', $status{volume});
-  printf("$e;239mU\e[0m%10s %.66s \n", 'State:', $status{state});
-  printf("$e;238mS\e[0m%10s %.66s \n", 'List V:', $status{list});
-
-  print "$c[13]$c[15]";
-  print '-' x 25, "$c[15]\n";
-
-  printf("$e;243m$c[15]S\e[0m%10s %.66s \n", 'Song:', $stats{song});
-  printf("$e;236mT\e[0m%10s %.66s \n", 'List:', $stats{length} . ' songs');
-  printf("$e;235mA\e[0m%10s %.66s \n", 'Songs:', $stats{songs});
-  printf("$e;234mT\e[0m%10s %.66s \n", 'Albums:', $stats{albums});
-  printf("$e;234mS\e[0m%10s %.66s \n", 'Artists:', $stats{artists});
+  printf("%s %8s: %.66s\n", fg('bold', fg('238', 'S')), 
+    'Song', $stats{song}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('237', 'T')),
+    'List', $stats{length} . ' songs'
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('236', 'A')),
+    'Songs', $stats{songs}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('235', 'T')),
+    'Albums', $stats{albums}
+  );
+  printf("%s %8s: %.66s\n", fg('bold', fg('234', 'S')),
+   'Artists', $stats{artists}
+  );
 
 }
 
@@ -550,11 +572,6 @@ sub playlist {
     my $artist = $song->artist // 'undef';
 
 
-    my $w = "$c[15]$c[6]";
-    if($i % 2 == 0) {
-      $w = "$c[8]\e[0m";
-    }
-
     my $crnt_title  = $mpd->current->title // undef;
     my $crnt_artist = $mpd->current->artist // undef;
     $title       =~ s/(\w+)/\u\L$1/g;
@@ -563,12 +580,12 @@ sub playlist {
     $crnt_artist =~ s/(\w+)/\u\L$1/g;
 
     if($mpd->current->pos == $i) {
-      $w = "$c[15]$c[4]";
-      printf("$w%4d\e[0m $w$c[4]%25.25s$c[8]▕$w$c[4]·$c[8]▏$w$c[4]%-47.47s\e[0m\n",
+      printf("%4d %25.25s |x| %-47.47s\n", 
         $i, $artist, $title);
+
     }
     else {
-      printf("$w%4d\e[0m $w$c[6]%25.25s$c[8]▕$w$c[14]|$c[8]▏$w$c[12]%-47.47s\e[0m\n",
+      printf("%4d %25.25s | | %-47.47s\n", 
         $i, $artist, $title);
     }
     $i++;
@@ -596,7 +613,7 @@ sub search_all_playlists {
       my ($artist, $album, $title, $genre, $file)
         = $_ =~ /"(.+)", "(.+)", "(.+)", "(.+)", "(.+)"/;
 
-      printf("$c[15]%25.25s\e[0m $c[3]%-47.47s\e[0m\n", $artist, $title);
+      printf("%s %s\n", fg($c[15], $artist), fg($c[3], $title));
 
       # Fulhack. The absolute path might be needed for other applications and
       # that's the reason why the basedir is here in the first place
@@ -643,7 +660,7 @@ sub killkid {
 
   if(kill(9, $pimpd_player)) {
     unlink($player_temp_log);
-    printf("\e[1m%d\e[0m %s\n", $pimpd_player, 'terminated') if($DEBUG);
+    printf("%d %s\n", fg('bold', $pimpd_player), 'terminated') if($DEBUG);
   }
 
   open(my $fh, '<', $pidfile_player) or die($!);
@@ -651,11 +668,11 @@ sub killkid {
   close($fh);
 
   if(kill(9, $pimpd_target)) {
-    printf("\e[1m%d\e[0m %s\n", $pimpd_target, 'terminated') if($DEBUG);
+    printf("%d %s\n", fg('bold', $pimpd_target, 'terminated')) if($DEBUG);
   }
 
   if(kill(9, $pimpd_target+1)) {
-    printf("\e[1m%d\e[0m %s\n", $pimpd_target+1, 'terminated') if($DEBUG);
+    printf("%d %s\n", fg('bold', $pimpd_target + 1), 'terminated') if($DEBUG);
   }
   return 0;
 }
@@ -782,7 +799,7 @@ sub add_playlist {
 
     $mpd->playlist->load($_) for @playlists;
     print "Adding ";
-    print "$c[15]$_\e[0m " for @playlists;
+    printf fg('bold', $_) for @playlists;
     print "\n";
 
     $mpd->play;
@@ -806,7 +823,7 @@ sub list_external {
       open($fh, '<', $full_path) or die("Can not open $full_path: $!");
     }
     while(<$fh>) {
-      print "$c[4]$playlist\e[0m: $c[15]$_\e[0m";
+      print fg($c[4], $playlist), ': ', fg($c[10], $_);
     }
     close($fh);
   }
@@ -842,8 +859,7 @@ sub cp {
 
   if(copy("$basedir/$file", $dest)) {
     my($basename) = $file =~ m;.+/(.+)$;;
-    printf("$c[4]$c[15]%s\e[0m$c[15] => \e[0m$c[6]%s\e[0m\n",
-      $basename, $dest);
+    print fg('bold', fg($c[4], $basename)), ' => ', fg($c[6], $dest), "\n";
   }
   else {
     print STDERR "cp: $basedir/$file $!\n";
@@ -876,7 +892,7 @@ sub is_existing_dir {
   }
   elsif(! -d $dir) {
     if(make_path($dir, 1, 0777)) {
-      print "$c[5]>>\e[0m$c[15] $dir\e[0m created\n\n";
+      print fg($c[5], '>>'), fg('bold', "$dir created"), "\n\n";
     }
     else {
       print STDERR "Could not mkdir $dir: $!\n";
@@ -917,9 +933,7 @@ sub cp_album {
     print "ALBNAME: $albname\n";
   } if($DEBUG);
 
-  printf("$c[13]$c[15]%50.50s\e[0m$c[15] => \e[0m$c[3]%s\e[0m\n",
-    $albname, $dest);
-
+  printf("%50.70s => %s\n",  fg($c[11], fg('bold', $albname)), $dest);
 
   if(defined($mpd_host)) {
     my @files = grep{ /\.(?:mp3|ogg|flac|wav)$/ } `ssh -p $ssh_port $ssh_user\@$ssh_host 'find "$album"'`;
@@ -935,7 +949,7 @@ sub cp_album {
       my ($basename) = $_ =~ m;.+/(.+)$;;
       if(scp($ssh_host, $ssh_port, $_, $dest) == 0) {
         # Yes, we are abusing STDERR here. Sorry :)
-        printf STDERR ("%50.50s\n", $basename);
+        printf STDERR ("%42.70s\n", $basename);
       }
       else {
         print STDERR "$!\n";
@@ -975,13 +989,13 @@ sub is_existing_list {
         }
       }
       if(scalar(@choices) == 0) {
-        print STDERR "No such playlist '$c[5]$list\e[0m'\n";
+        print STDERR "No such playlist ' " . fg($c[5], $list), "\n";
         return;
       }
 
       my $i = 0;
       for my $choice(@choices) {
-        printf("$c[15]%3d\e[0m %s\n", $i, $choice);
+        print fg('bold', sprintf("%3d", $i)), " $choice\n";
         $i++;
       }
       print "choice: ";
@@ -1022,8 +1036,8 @@ sub cp_list {
     my @files = map { $_ = "$basedir/" . $_->file; } $mpd->playlist->as_items;
     if(defined($mpd_host)) {
       for my $file(@files) {
-        #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-        $file =~ s/(\s+)/\\$1/g;
+        $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+        #$file =~ s/(\s+)/\\$1/g;
         scp($ssh_host, $ssh_port, $file, $dest);
       }
     }
@@ -1032,8 +1046,8 @@ sub cp_list {
         #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
         $file =~ s/(\s+)/\\$1/g;
         if(copy($file, $dest)) {
-          printf("[$c[6]%5.11s\e[0m] %50.50s $c[15] => \e[0m %s\n",
-            'current', $file, $dest);
+          printf("[%5.20s] %50.50s => %s\n",
+            fg($c[6], 'current'), fg('bold', $file), $dest);
         }
         else {
           print STDERR "cp_list(): $!\n";
@@ -1046,8 +1060,7 @@ sub cp_list {
   my %playlist_map;
 
   for my $playlist(@lists) {
-    print "$playlist\n";
-    my $full_path = "$playlist_dir/$playlist\.m3u";
+    my $full_path = "$playlist_dir/$playlist\.m3u"; #FIXME
 
     my $fh = undef;
 
@@ -1066,6 +1079,8 @@ sub cp_list {
     close($fh);
   }
 
+  print "\n---\n";
+
   for my $file(keys(%playlist_map)) {
     my $full = "$basedir/$file";
 
@@ -1076,8 +1091,8 @@ sub cp_list {
     else {
       my($basename) = $file =~ m;.+/(.+)$;;
       if(copy($full, $dest)) {
-        printf("[$c[6]%5.11s\e[0m] %50.50s $c[15] => \e[0m %s\n",
-          $playlist_map{$file}, $basename, $dest);
+        printf("[%5.11s] %50.50s => %s\n",
+          fg($c[6], $playlist_map{$file}), $basename, $dest);
       }
       else {
         print STDERR "cp_list(): $!\n";
@@ -1162,7 +1177,8 @@ sub write_favlist {
       "echo '$file' >> $favlist_m3u"
       );
     my ($basename) = $file =~ m;.+/(.+)$;;
-    printf("$c[3]%s\e[0m\e[1m >> \e[0m %s\n", $basename, "\e[1m$ssh_host\e[0m:$favlist_m3u");
+    printf("%s >> %s\n",
+      fg($c[3], $basename), fg('bold', $ssh_host) . ":$favlist_m3u");
 
     # Full DB
     my $full_str = sprintf("\"%s\", \"%s\", \"%s\", \"%s\", \"%s\"",
@@ -1195,7 +1211,7 @@ sub write_favlist {
   print $fh "$file\n";
   close($fh);
 
-  print "$c[8]$c[15]'$title'\e[0m => $c[6]$favlist_m3u\e[0m\n";
+  print fg($c[8], fg('bold', $title)), ' => ', fg($c[6], $favlist_m3u), "\n";
 
   return 0;
 }
@@ -1244,13 +1260,14 @@ sub parse_favlist {
     for my $album(keys(%{$fav->{$artist}})) {
       for my $title(keys(%{$fav->{$artist}{$album}})) {
         for my $genre(keys(%{$fav->{$artist}{$album}{$title}})) {
-          print "\e[1m\e[38;5;65m$album\e[0m:\n";
+
+          print fg('bold',fg('blue10', $album));
           for my $song_on_album(sort(@{$fav->{$artist}{$album}{$title}{$genre}})) {
 
             my($albname) = $song_on_album =~ m;.+/(.+)$;;
 
             if($albname =~ /($query)(.*)/gpi) {
-              $albname = "${^PREMATCH}$c[5]$c[15]$1\e[0m$2";
+              $albname = ${^PREMATCH} . fg('bold', fg($c[15])) . $2;
             }
             printf("% 2d\t%s\n", $i, $title);
             $i++;
@@ -1305,6 +1322,8 @@ sub favlist_stats {
     $genres{$genre}++   unless($genre  eq 'undef');
     $files{$file}++;
   }
+
+  #FIXME END HERE
 
   printf("$c[0]$c[15]%20s\e[0m  $c[15]$c[6]%s\e[0m\n", 'Count', 'Artist') unless(!$display_all);
   for(sort { $artists{$b} <=> $artists{$a} } keys(%artists)) {
@@ -1916,14 +1935,16 @@ sub current {
 
   my $current = undef;
 
-  $bitrate = ($bitrate < 160)
-  ? ("$c[5]$bitrate\e[0m")
-  : ("$c[13]$bitrate\e[0m");
+  if( ($bitrate < 160) and (!$opt_no_color) ) {
+    $bitrate = fg($c[5], $bitrate);
+  }
+  elsif( ($bitrate > 160) and (!$opt_no_color) ) {
+    $bitrate = fg($c[11], $bitrate);
+  }
 
   if(!defined($artist) or(!defined($song))) {
     if(terminal_output()) {
-      $current = sprintf("[$c[15]$c[8]%d\e[0m]$c[1]>>$c[9] %s$c[15]%s\e[0m",
-        $pos, "$basedir/", $cu->file);
+      $current = sprintf("%s >> %s %s", fg('bold', $pos), "$basedir/", $cu->file);
     }
     else {
       $current = sprintf(" >> %s %s",
@@ -1932,9 +1953,9 @@ sub current {
   }
   else {
     if(terminal_output()) {
-      $current = sprintf("[$c[15]$c[8]%d\e[0m]$c[3]>>$c[9] $c[1]$c[15]%s\e[0m - $c[15]$c[3]%s\e[0m ",
-        $pos, $artist, $song)
-        . sprintf("from $c[15]$c[4]%s\e[0m ($bitrate kbps) [$genre]", $album);
+      $current = sprintf("[%s] >> %s - %s", 
+        fg('bold', $pos), fg($c[0], $artist), fg($c[0], fg('bold', $song)))
+          . sprintf(" from %s ($bitrate kbps) [$genre]", fg($c[0], $album));
     }
     else {
       $current = sprintf(" [%d]>> %s - %s from %s [%s]",
