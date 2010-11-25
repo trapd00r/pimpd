@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.8.3';
+our $VERSION  = '1.8.4';
 
 use strict;
 my $DEBUG = 0;
@@ -15,9 +15,6 @@ use Pod::Usage;
 use File::Path qw(make_path remove_tree);
 use Term::ExtendedColor;
 
-if($DEBUG) {
-  use Data::Dumper;
-}
 
 if(!@ARGV) {
   print "$APP $VERSION\n";
@@ -131,7 +128,6 @@ $month += 1;
 $year  += 1900;
 
 my $player_temp_log = '/tmp/pimpd_player.log';
-my $e = "\e[38;5";
 
 my $mpd;
 if(defined($mpd_host)) {
@@ -370,17 +366,17 @@ sub information {
   (undef,undef,undef,undef,undef, my $crnt_year) = localtime(time);
   $crnt_year += 1900;
 
-  if(not($opt_no_color)) { # Use colors
-    $current{'bitrate'} = ($current{'bitrate'} < 192)
-      ? ("$e;160m$current{'bitrate'}\e[0m")
-      : ("$e;70m$current{'bitrate'}\e[0m")
+  if(!($opt_no_color)) { # Use colors
+    $current{bitrate} = ($current{bitrate} < 160)
+      ? fg($c[5], $current{bitrate})
+      : fg($c[10], $current{bitrate})
       ;
-
-    $current{date} = fg('bold', $current{date});
   }
 
+  $current{date} = fg('bold', $current{date});
+
   for(keys(%current)) {
-    $current{$_} = "$e;240mNot Available$e;0m" if(!defined($current{$_}));
+    $current{$_} = fg($c[14], 'N/A') if(!defined($current{$_}));
   }
 
   $status{state} = 'Playing' if($status{state} eq 'play');
@@ -833,12 +829,16 @@ sub list_external {
 sub scp {
   my($host, $port, $src, $dest) = @_;
 
+  # fulhack, FIXME
+  $src =~ s;^$basedir/($basedir/.+);$1;;
+
   # ~  - if a filename contains this, fun stuff could happen
   # =  - one could set env vars if not escaping this
   $src  =~ s/([;\\<\n\=\~>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
-  $dest =~ s/([;\\<\n\=\~>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+  #$dest =~ s/([;\\<\n\=\~>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
   #$dest =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
 
+  # FIXME let scp's fail
   system('scp', '-r',  "-P $port", "$host:$src", $dest) == 0 or croak("scp: $!");
   return 0;
 }
@@ -1036,7 +1036,7 @@ sub cp_list {
     my @files = map { $_ = "$basedir/" . $_->file; } $mpd->playlist->as_items;
     if(defined($mpd_host)) {
       for my $file(@files) {
-        $file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+        #$file =~ s/([;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
         #$file =~ s/(\s+)/\\$1/g;
         scp($ssh_host, $ssh_port, $file, $dest);
       }
@@ -1923,7 +1923,6 @@ sub search_title  {
     fg('bold', fg($c[5], $search)),
   );
 }
-
 
 sub current {
   if(playlist_is_empty()) {
