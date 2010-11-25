@@ -449,7 +449,7 @@ sub information {
   print fg($c[15]);
   print '-' x 25, clear(), "\n";
 
-  printf("%s %8s: %.66s\n", fg('bold', fg('238', 'S')), 
+  printf("%s %8s: %.66s\n", fg('bold', fg('238', 'S')),
     'Song', $stats{song}
   );
   printf("%s %8s: %.66s\n", fg('bold', fg('237', 'T')),
@@ -580,12 +580,12 @@ sub playlist {
     $crnt_artist =~ s/(\w+)/\u\L$1/g;
 
     if($mpd->current->pos == $i) {
-      printf("%4d %25.25s |x| %-47.47s\n", 
+      printf("%4d %25.25s |x| %-47.47s\n",
         $i, $artist, $title);
 
     }
     else {
-      printf("%4d %25.25s | | %-47.47s\n", 
+      printf("%4d %25.25s | | %-47.47s\n",
         $i, $artist, $title);
     }
     $i++;
@@ -1323,41 +1323,36 @@ sub favlist_stats {
     $files{$file}++;
   }
 
-  #FIXME END HERE
 
-  printf("$c[0]$c[15]%20s\e[0m  $c[15]$c[6]%s\e[0m\n", 'Count', 'Artist') unless(!$display_all);
+
+  printf("%30s %s\n", 'Count', 'Artist') unless(!$display_all);
+
   for(sort { $artists{$b} <=> $artists{$a} } keys(%artists)) {
     if($display_all) {
-      printf("$c[15]%20d\e[0m  %s\n", $artists{$_}, $_);
+      printf("%20d %s\n", $artists{$_}, $_);
     }
     else {
-      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
-        'Favorite', 'artist', 'are', $_, 'with', $artists{$_},
-        'loved songs');
+      printf("%s %s %s\n", 'Favorite artist:', $_ , "($artists{$_})");
       last;
     }
   }
-  printf("$c[15]$c[6]%27s\e[0m\n", 'Album') unless(!$display_all);
+  printf("%27s\n", 'Album') unless(!$display_all);
   for(sort { $albums{$b} <=> $albums{$a} } keys(%albums)) {
     if($display_all) {
-      printf("$c[15]%20d\e[0m  %s\n", $albums{$_}, $_);
+      printf("%20d %s\n", $albums{$_}, $_);
     }
     else {
-      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
-        'Your favorite', ' album', 'are', $_, 'with', $albums{$_},
-        'loved songs');
+      printf("%s %s %s\n", 'Favorite album:', $_ , "($albums{$_})");
       last;
     }
   }
-  printf("$c[15]$c[6]%27s\e[0m\n", 'Genre') unless(!$display_all);
+  printf("%27s\n", 'Genre') unless(!$display_all);
   for(sort { $genres{$b} <=> $genres{$a} } keys(%genres)) {
     if($display_all) {
-      printf("$c[15]%20d\e[0m  %s\n", $genres{$_}, $_);
+      printf("%20d %s\n", $genres{$_}, $_);
     }
     else {
-      printf("%s $c[15]%s\e[0m %s $c[6]$c[15]%s\e[0m %s $c[2]$c[15]%d\e[0m %s\n",
-        'Your favorite', ' genre', 'are', $_, 'with', $genres{$_},
-        'loved songs');
+      printf("%s %s %s\n", 'Favorite genre:', $_ , "($genres{$_})");
       last;
     }
   }
@@ -1370,9 +1365,8 @@ sub list_albums {
   for(sort(@albums)) {
     print "$_\n";
   }
-  printf("\n$c[0]$c[15]%s\e[0m is featured on $c[15]%d\e[0m albums\n",
-    $artist, scalar(@albums),
-  );
+  printf("%s is featured on %s albums\n",
+    fg($c[2], fg('bold', $artist)), fg($c[4], fg('bold', scalar(@albums))));
 }
 
 sub list_songs_on_album {
@@ -1389,21 +1383,20 @@ sub list_songs_on_album {
 
   if(defined($num) and $num ne 'nothing to add') {
     if($num > scalar(@tracks)) {
-      print STDERR "There are "
-        . scalar(@tracks)
-        . " songs on \e[1m$c[1]$album\e[0m\n";
+      print STDERR "There are " . scalar(@tracks)
+        . " songs on ". fg($c[1], $album), "\n";
       return 1;
     }
     my $file = $tracks[$num]->file;
     $mpd->playlist->add($file);
-    printf("\e[1mAdded\e[0m $c[1]%s\e[0m - %s\n",
-      $tracks[$num]->artist, $tracks[$num]->title,
-    );
+    printf("Added %s - %s\n",
+      fg('bold', $tracks[$num]->artist), $tracks[$num]->title);
+
     return 0;
   }
 
   my $i = 0;
-  printf("$c[4]$c[15] %50.50s\e[0m\n", $album);
+  printf("%s\n", fg('bold', fg($c[4], $album)));
 
   for(@tracks) {
     printf("% 3s %50.50s %s\n", $i, $_->title, sec_and_min($_->time));
@@ -1442,8 +1435,8 @@ sub play_from_list {
     print STDERR "Integers only, please.\n";
   }
   if($choice > $mpd->status->playlistlength) {
-    print STDERR "There are $c[15]" . $mpd->status->playlistlength
-      . "\e[0m songs in the playlist. Pick one of them!\n";
+    print STDERR "There are " .fg('bold',  $mpd->status->playlistlength)
+      . "songs in the playlist. Pick one of them!\n";
       return 1;
   }
   $mpd->play($choice -1);
@@ -1468,6 +1461,7 @@ sub monitor {
       my $genre  = $mpd->current->genre  // 'undef';
       my $year   = $mpd->current->date   // 0;
 
+      #NOTE Ugly. Make configureable..
       if($daemon_cmd eq 'dzen') {
         $output = sprintf(
           "^fg(#4af617)%s ^fg(#999999)by^fg() ^fg(#fa4b04)%s^fg(#999999)",
@@ -1496,8 +1490,9 @@ sub monitor {
         my @date = localtime(time);
         my @rc = shuffle(@c);
         my $file = $mpd->current->file;
-        printf("%02s:%02s:%02s | $rc[0]%.68s$c[9]\n",
-          $date[2], $date[1], $date[0], $file);
+        printf("%02d:%0ds:%0ds | %.90s\n",
+          $date[2], $date[1], $date[0], fg($rc[0], $file));
+        print clear();
       }
     }
     sleep 2;
@@ -1514,7 +1509,7 @@ sub queue {
   #@to_play = map{ $_ = $_ - 1 } @to_play;
   for(@to_play) {
     if(invalid_pos($_)) {
-      print STDERR "$c[5]$_\e[0m: invalid position\n";
+      print STDERR fg($c[5], $_), ": invalid position\n";
       return 1;
     }
   }
@@ -1531,11 +1526,12 @@ sub queue {
 
 
   my $next_pos = $mpd->current->pos + 1;
-  print "\e[1mQueueing\e[0m:\n";
+  print fg('bold', 'Queueing'), ":\n";
   for(@to_play) {
-    printf("$c[8]%-30.30s\e[0m\n", $list{$_});
-    print "$_ => \e[1m$next_pos\e[0m\n";
-    $mpd->playlist->move($_, $next_pos++); #FIXME
+    printf("%-50.50s %s\n", fg($c[3], $list{$_}), "( $_ => $next_pos )");
+    #print "$_ => ", fg('bold', $next_pos), "\n" if($DEBUG);
+
+    $mpd->playlist->move($_, $next_pos);
     $next_pos++;
   }
 }
@@ -1555,8 +1551,11 @@ sub np_realtime {
       ($output, $current) = 'undef' x 2;
     }
     else {
-      $output = sprintf("$c[15]$c[6]%s\e[0m - %s - $c[10]%s\e[0m",
-        $mpd->current->artist,  $mpd->current->album, $mpd->current->title);
+      $output = sprintf("%s - %s - %s",
+        fg('bold', fg($c[7], $mpd->current->artist)),
+        $mpd->current->album,
+        fg($c[12], $mpd->current->title),
+      );
     }
     my $played_time = $mpd->status->time->sofar;
     my $total_time  = $mpd->status->time->total;
@@ -1564,7 +1563,11 @@ sub np_realtime {
     $|++;
     # Hide the cursor
     printf("\e[?25l");
-    printf("[%s/$c[6]%s\e[0m]\r", $played_time, $total_time);
+    printf("[%s/%s\r",
+      $played_time,
+      fg('bold', $total_time),
+    );
+
     if("$np" ne "$current") {
       $np = $current;
       printf("\t\t%s\r", $output);
@@ -1587,8 +1590,9 @@ sub shell {
         print STDERR "Need a valid integer\n";
         $_[0] = 100;
       }
-      print "Adding $c[15]@_\e[0m random tracks to the playlist...\n";
-      #$opt_clear_playlist = 1;
+      print 'Adding ' . fg('bold', @_) . " random tracks...\n";
+
+      $opt_clear_playlist = 1;
       randomize(@_);
     },
     'randa'   => sub {
@@ -1757,16 +1761,16 @@ sub shell {
     'ra'        => sub {
       $mpd->random;
       my $status =  ($mpd->status->random)
-        ? "Random: $c[15]On\e[0m"
-        : "Random: $c[15]Off\e[0m";
+        ? "Random: " . fg('bold', 'On')
+        : "Random: " . fg('bold', 'Off');
       print "$status\n";
     },
 
     're'        => sub {
       $mpd->repeat;
       my $status = ($mpd->status->repeat)
-        ? "Repeat: $c[15]On\e[0m"
-        : "Repeat: $c[15]Off\e[0m";
+        ? "Repeat: " . fg('bold', 'On')
+        : "Repeat: " . fg('bold', 'Off');
       print "$status\n";
     },
 
@@ -1787,9 +1791,9 @@ sub shell {
   };
 
   while(1) {
-    print "$c[6]pimpd$c[15]>\e[0m$c[15]$c[0] ";
+    print fg($c[6], 'pimpd'), fg('bold', '> ');
+
     chomp(my $choice = <STDIN>);
-    print "\e[0m";
     ($cmd) = $choice =~ m/^(\w+)/;
     ($arg) = $choice =~ m/\s+(.+)$/;
     @cmd_args  = split(/\s+/, $arg);
@@ -1802,7 +1806,7 @@ sub shell {
     }
     else {
       $opts->{h}->();
-      print STDERR "$c[15]No such option $c[5]$cmd\e[0m\n";
+      print STDERR "No such option ", fg($c[5], $cmd), "\n";
     }
   }
   exit(0);
@@ -1838,13 +1842,17 @@ sub search_playlist {
         push(@found, $pos_no);
 
         # GNU Grep like color-matching
-        print "${^PREMATCH}$c[5]$c[15]$1\e[0m$2\n";
+        print ${^PREMATCH}, fg('bold', fg($c[1], $1)), "$2\n";
       }
     }
   }
 
   if(scalar(@found) < 1) {
-    print STDERR "\e[0mNo match on '$c[15]$search\e[0m' in the current playlist\n";
+    print STDERR
+      "No match on ' ",
+      fg('bold', $search),
+      "' in the current playlist\n";
+
     return 1;
   }
   #@found = map { $_ = $_ +1 } @found; # fulhack
@@ -1870,44 +1878,50 @@ sub search_db {
 
 sub search_album {
   my $search = shift;
-  my @tracks = $mpd->collection->songs_from_album_partial($search);
-  if(!@tracks) {
-    print ">> $c[2]$search$c[9]: no tracks found\n";
+  my @albums = $mpd->collection->songs_from_album_partial($search);
+  if(!@albums) {
+    print ">> ", fg($c[2], $search), ": no albums found\n";
     return 1;
   }
-  map { $_ = $_->file } @tracks;
-  pipe_add(@tracks);
+  map { $_ = $_->file } @albums;
+  pipe_add(@albums);
 
-  printf(">> $c[6]$c[15]%d\e[0m $c[15]album\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
-    scalar(@tracks), $search);
+  printf(">> Found %s songs on albums matching '%s'\n",
+    fg('bold', fg($c[6], scalar(@albums))),
+    fg('bold', fg($c[5], $search)),
+  );
 }
 
 sub search_artist {
   my $search = shift;
   my @artists = $mpd->collection->songs_by_artist_partial($search);
   if(!@artists) {
-    print ">> $c[2]$search$c[9]: nothing found\n";
+    print ">> ", fg($c[2], $search), ": nothing found\n";
     return 1;
   }
    map { $_ = $_->file } @artists;
   pipe_add(@artists);
 
-  printf(">> $c[6]$c[15]%d\e[0m $c[15]artist\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
-    scalar(@artists), $search);
+  printf(">> Found %s artist matches for '%s'\n",
+    fg('bold', fg($c[6], scalar(@artists))),
+    fg('bold', fg($c[5], $search)),
+  );
 }
 
 sub search_title  {
   my $search = shift;
   my @songs = $mpd->collection->songs_with_title_partial($search);
   if(!@songs) {
-    print ">> $c[2]$search$c[9]: nothing found\n";
+    print ">> ", fg($c[2], $search), ": nothing found\n";
     return 1;
   }
    map { $_ = $_->file } @songs;
   pipe_add(@songs);
 
-  printf(">> $c[6]$c[15]%d\e[0m $c[15]song\e[0m matches for '$c[10]$c[15]%s\e[0m' found\n",
-    scalar(@songs), $search);
+  printf(">> Found %s titles matches '%s'\n",
+    fg('bold', fg($c[6], scalar(@songs))),
+    fg('bold', fg($c[5], $search)),
+  );
 }
 
 
@@ -1953,7 +1967,7 @@ sub current {
   }
   else {
     if(terminal_output()) {
-      $current = sprintf("[%s] >> %s - %s", 
+      $current = sprintf("[%s] >> %s - %s",
         fg('bold', $pos), fg($c[0], $artist), fg($c[0], fg('bold', $song)))
           . sprintf(" from %s ($bitrate kbps) [$genre]", fg($c[0], $album));
     }
@@ -1977,7 +1991,7 @@ sub terminal_output {
     return 1;
   }
   else {
-    @c = (); # make sure no escape sequences escape through
+    @c = (); # make sure no escape sequences escapes through
     return 0;
   }
 }
@@ -1986,8 +2000,10 @@ sub sec_and_min {
   my $sec = shift;
   my($s, $m) = localtime($sec);
 
-  return sprintf("$c[6]$c[15]%d\e[0m$c[6]m\e[0m$c[6]$c[15]% 2d\e[0m$c[6]s\e[0m",
-    $m, $s);
+  return sprintf("%sm % 2ds",
+    fg('bold', fg($c[6], $m)),
+    fg('bold', fg($c[6], $s)),
+  );
 }
 
 sub playlist_is_empty {
