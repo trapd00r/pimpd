@@ -2058,43 +2058,43 @@ sub help {
 
 =head1 NAME
 
-  pimpd - Perl Interface for the Music Player Daemon
+pimpd - Perl Interface for the Music Player Daemon
 
 =head1 SYNOPSIS
 
-  pimpd [OPTIONS...] (ARG)
+pimpd [OPTIONS...] (ARG)
 
 =head1 DESCRIPTION
 
-  pimpd is an MPD client written in Perl that aims to implement what the
-  excellent mpc client is lacking (for good reasons), as well as all the
-  regular functionality one would expect.
+pimpd is an MPD client written in Perl that aims to implement what the
+excellent mpc client is lacking (for good reasons), as well as all the
+regular functionality one would expect.
 
-=head3 Local playback
+=head2 Local playback
 
-  If defined in the configuration file, an external player can be used for
-  playback of music running on another box (the MPD server). This is fully
-  transparent; when MPD is stopped, so is the external player.
+If defined in the configuration file, an external player can be used for
+playback of music running on another box (the MPD server). This is fully
+transparent; when MPD is stopped, so is the external player.
 
-  When the --play flag is given, pimpd will connect to MPD and start playback
-  if neccessary, and at the same time connect to the stream with the specified
-  external player.
+When the --play flag is given, pimpd will connect to MPD and start playback
+if neccessary, and at the same time connect to the stream with the specified
+external player.
 
-  Issues with unreliable network connections/slow disks causing the external
-  player to exit is eliminated, as well as scenarios where the MPD playlist
-  might be temporary empty (no playback - external player exits).
+Issues with unreliable network connections/slow disks causing the external
+player to exit is eliminated, as well as scenarios where the MPD playlist
+might be temporary empty (no playback - external player exits).
 
-=head3 Regular expression based queries
+=head2 Regular expression based queries
 
-  You can search the database and playlist using regular expressions. There are
-  several other (faster) ways to search as well - by artist, album or title.
+You can search the database and playlist using regular expressions. There are
+several other (faster) ways to search as well - by artist, album or title.
 
-  Additionally, it's possible to search through all favlists at the same time,
-  adding the matches to the current playlist. Since pimpd internally keeps an
-  csv-style database up to date with the favorized tracks, it's enough to search
-  for artist, album, title, genre and/or file, in any combination.
+Additionally, it's possible to search through all favlists at the same time,
+adding the matches to the current playlist. Since pimpd internally keeps an
+csv-style database up to date with the favorized tracks, it's enough to search
+for artist, album, title, genre and/or file, in any combination.
 
-=head3 Randomizing
+=head2 Randomizing
 
   -r will create a new playlist with <num> randomly selected tracks from the
      database added.
@@ -2104,16 +2104,16 @@ sub help {
 
   -rt will play a random track from the current playlist.
 
-=head3 Favorites
+=head2 Favorites
 
-  Favorites are handled in several ways. When the -f flag is used, pimpd will
-  check for the genre tag of the song and, if existing, save it in the playlist
-  directory with a year-month_genre-notation.
-  If there's no genre tag, the $fallback_playlist, specified in the
-  configuration file, is used.
+Favorites are handled in several ways. When the -f flag is used, pimpd will
+check for the genre tag of the song and, if existing, save it in the playlist
+directory with a year-month_genre-notation.
+If there's no genre tag, the $fallback_playlist, specified in the
+configuration file, is used.
 
-  pimpd will also keep a CSV-style database updated with more additional data on
-  the song. This have several purposes:
+pimpd will also keep a CSV-style database updated with more additional data on
+the song. This have several purposes:
 
   * other applications might expect regular m3u-style playlists with only a
     defined "file"-field,
@@ -2123,17 +2123,17 @@ sub help {
 
   * we can generate nifty stats for loved songs
 
-=head3 Transfering of music
+=head2 Transfering of music
 
-  There are several ways of transfering music.
+There are several ways of transfering music.
 
-  This is especially useful if the MPD server is running elsewhere and you want
-  to listen to the music locally, or if you want to transfer some music to your
-  portable music player.
+This is especially useful if the MPD server is running elsewhere and you want
+to listen to the music locally, or if you want to transfer some music to your
+portable music player.
 
-  The $ssh_host, $ssh_port and $ssh_user variables in the configuration file
-  must be defined in the configuration file, and you must be using SSH keys for
-  this to work over networks.
+The $ssh_host, $ssh_port and $ssh_user variables in the configuration file
+must be defined in the configuration file, and you must be using SSH keys for
+this to work over networks.
 
   -cp  simply copies the currently playing track to the specifed location.
 
@@ -2141,14 +2141,14 @@ sub help {
 
   -cpl copies all tracks in the specified playlist to the specified location.
 
-=head3 Interactive shell
+=head2 Interactive shell
 
-  From the interactive shell one can access almost all functionality that's
-  available through regular option flags.
+From the interactive shell one can access almost all functionality that's
+available through regular option flags.
 
-=head3 Monitor song changes
+=head2 Monitor song changes
 
-  There are two ways to monitor song changes:
+There are two ways to monitor song changes:
 
   -m  simply print song changes to stdout.
 
@@ -2156,9 +2156,9 @@ sub help {
       integration in dzen2 and so on. Most window managers uses their own sort
       of notification functionality which can also be used.
 
-=head3 Now playing
+=head2 Now playing
 
-  There are three options that will yeild some info on the current track:
+There are three options that will yeild some info on the current track:
 
   -i     print all information available.
 
@@ -2166,12 +2166,12 @@ sub help {
 
   -nprt  print information on the currently playing track in realtime mode.
 
-=head3 Colors
+=head2 Colors
 
-  pimpd does support colorschemes, which are defined and loaded from the
-  configuration file. 256 colors is supported, as well as no colors at all.
+pimpd does support colorschemes, which are defined and loaded from the
+configuration file. 256 colors is supported, as well as no colors at all.
 
-  All of this works on local MPD servers as well as remote ones.
+All of this works on local MPD servers as well as remote ones.
 
 =head1 OPTIONS
 
