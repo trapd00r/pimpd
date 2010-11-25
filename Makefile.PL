@@ -1,21 +1,24 @@
-#!/usr/bin/perl
+use strict;
+use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME => 'pimpd',
-    DISTNAME => 'pimpd',
-#    PMLIBDIRS => ['lib'],
-    ABSTRACT => 'Perl Interface for the Music Player Daemon',
-    AUTHOR => 'Magnus Woldrich <trapd00r@trapd00r.se',
-    EXE_FILES => ['pimpd'],
-    LICENSE => "GPLv2",
-    MIN_PERL_VERSION => 5.000,
-    MAN1PODS  => {
-      'pimpd' => 'blib/man1/pimpd.1',
-    },
+    NAME                => 'pimpd',
+    AUTHOR              => q{Magnus Woldrich <trapd00r@trapd00r.se>},
+    VERSION_FROM        => 'pimpd',
+    ABSTRACT_FROM       => 'pimpd',
+    ($ExtUtils::MakeMaker::VERSION >= 6.3002
+      ? ('LICENSE'=> 'perl')
+      : ()),
+    PL_FILES            => {},
+    EXE_FILES =>           ['pimpd'],
     PREREQ_PM => {
-        'Audio::MPD'               => 0,
+        'Test::More' => 0,
+        'Audio::MPD' => 0,
     },
+    MAN1PODS            => {
+        'pimpd' => 'blib/man1/pimpd.1',
+      },
+    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    clean               => { FILES => 'pimpd-*' },
 );
-
-
