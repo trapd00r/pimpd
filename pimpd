@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.8.4';
+our $VERSION  = '1.8.5';
 
 use strict;
 my $DEBUG = 0;
@@ -13,7 +13,7 @@ use File::Copy;
 use Carp;
 use Pod::Usage;
 use File::Path qw(make_path remove_tree);
-use Term::ExtendedColor;
+use Term::ExtendedColor qw(fg clear);
 
 
 if(!@ARGV) {
