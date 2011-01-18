@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.8.5';
+our $VERSION  = '1.8.55';
 
 use strict;
 my $DEBUG = 0;
@@ -2239,7 +2239,7 @@ Girls can contact me at <trapd00r@trapd00r.se>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2009, 2010 Magnus Woldrich
+Copyright (C) 2009, 2010, 2011 Magnus Woldrich
 
 =head1 SEE ALSO
 
