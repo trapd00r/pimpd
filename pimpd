@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 our $APP      = 'pimpd';
-our $VERSION  = '1.8.55';
+our $VERSION  = '1.8.6';
 
 use strict;
 my $DEBUG = 0;
