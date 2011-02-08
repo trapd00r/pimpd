@@ -2062,7 +2062,7 @@ pimpd - Perl Interface for the Music Player Daemon
 
 =head1 SYNOPSIS
 
-pimpd [OPTIONS...] (ARG)
+  pimpd [OPTIONS...] (ARG)
 
 =head1 DESCRIPTION
 
@@ -2228,21 +2228,27 @@ The configuration file should be placed in $XDG_CONFIG_HOME/pimpd/pimpd.conf OR
 
 =head1 AUTHOR
 
-Written by Magnus Woldrich
+  Magnus Woldrich
+  CPAN ID: WOLDRICH
+  magnus@trapd00r.se
+  http://japh.se
 
-=head1 REPORTING BUGS
+=head1 CONTRIBUTORS
 
-Report bugs and feature requests at the issue tracker
-<http://github.com/trapd00r/pimpd/issues>
-
-Girls can contact me at <trapd00r@trapd00r.se>
+Olof Johansson made the original scp routines.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2009, 2010, 2011 Magnus Woldrich
+Copyright (C) 2009, 2010, 2011 B<pimpd>s L</AUTHOR> and L</CONTRIBUTORS> as
+listed above.
+
+=head1 LICENSE
+
+This program is free software; you may redistribute it and/or modify it under
+the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-B<rmcd>  <http://github.com/trapd00r/rmcd>
+B<pimpd2>  <http://github.com/trapd00r/pimpd2>
 
 =cut

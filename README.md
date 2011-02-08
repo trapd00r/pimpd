@@ -2,13 +2,15 @@
 
   pimpd - Perl Interface for the Music Player Daemon
 
+  NOTE: pimpd is deprecated - use https://github.com/trapd00r/pimpd2
+
 # SYNOPSIS
 
   pimpd [OPTIONS...] (ARG)
 
 # DESCRIPTION
 
-  ![pimpd screenshot](http://github.com/trapd00r/pimpd/raw/master/docs/screenshot.png "pimpd screenshot")
+  ![pimpd screenshot](http://perl.japh.se/devel/pimpd/screenshot.png "pimpd screenshot")
 
 pimpd is an MPD client written in Perl that aims to implement what the
 excellent mpc client is lacking (for good reasons), as well as all the
@@ -175,12 +177,6 @@ Written by Magnus Woldrich
 Report bugs and feature requests at the issue tracker
 <http://github.com/trapd00r/pimpd/issues>
 
-Girls can contact me at <trapd00r@trapd00r.se>
-
 # COPYRIGHT
 
-Copyright (C) 2009, 2010 Magnus Woldrich
-
-# SEE ALSO
-
-__rmcd__  <http://github.com/trapd00r/rmcd>
+Copyright (C) 2009, 2010, 2011 Magnus Woldrich
